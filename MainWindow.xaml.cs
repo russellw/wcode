@@ -13,6 +13,7 @@ public partial class MainWindow : Window
 {
     private string? _currentFolderPath;
     private Dictionary<string, string> _openFiles = new Dictionary<string, string>();
+    private Dictionary<TabItem, TabInfo> _tabInfos = new Dictionary<TabItem, TabInfo>();
     
     public MainWindow()
     {
@@ -36,6 +37,7 @@ public partial class MainWindow : Window
         {
             _currentFolderPath = dialog.FolderName;
             LoadFolderStructure(_currentFolderPath);
+            OpenDirectoryTab(_currentFolderPath);
         }
     }
 
@@ -122,8 +124,8 @@ public partial class MainWindow : Window
     {
         var fileName = Path.GetFileName(filePath);
         
-        var existingTab = FileTabControl.Items.Cast<TabItem>()
-            .FirstOrDefault(tab => tab.Tag?.ToString() == filePath);
+        var existingTab = _tabInfos.FirstOrDefault(kvp => 
+            kvp.Value.Type == TabType.File && kvp.Value.Path == filePath).Key;
         
         if (existingTab != null)
         {
@@ -152,11 +154,21 @@ public partial class MainWindow : Window
             
             var tabItem = new TabItem
             {
-                Header = fileName,
+                Header = $"📄 {fileName}",
                 Content = textEditor,
                 Tag = filePath
             };
             
+            var tabInfo = new TabInfo
+            {
+                Type = TabType.File,
+                Title = fileName,
+                Path = filePath,
+                Content = textEditor,
+                Icon = "📄"
+            };
+            
+            _tabInfos[tabItem] = tabInfo;
             FileTabControl.Items.Add(tabItem);
             FileTabControl.SelectedItem = tabItem;
             
@@ -197,9 +209,13 @@ public partial class MainWindow : Window
     {
         if (sender is Button button && button.Tag is TabItem tabItem)
         {
-            if (tabItem.Tag is string filePath)
+            if (_tabInfos.TryGetValue(tabItem, out var tabInfo))
             {
-                _openFiles.Remove(filePath);
+                if (tabInfo.Type == TabType.File && tabInfo.Path != null)
+                {
+                    _openFiles.Remove(tabInfo.Path);
+                }
+                _tabInfos.Remove(tabItem);
             }
             
             FileTabControl.Items.Remove(tabItem);
@@ -246,5 +262,82 @@ public partial class MainWindow : Window
     private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
     {
         Application.Current.Shutdown();
+    }
+    
+    private void OpenDirectoryTab(string directoryPath)
+    {
+        var directoryName = Path.GetFileName(directoryPath) ?? "Directory";
+        
+        var existingTab = _tabInfos.FirstOrDefault(kvp => 
+            kvp.Value.Type == TabType.Directory && kvp.Value.Path == directoryPath).Key;
+        
+        if (existingTab != null)
+        {
+            FileTabControl.SelectedItem = existingTab;
+            return;
+        }
+        
+        var directoryControl = new DirectoryTabControl();
+        directoryControl.LoadDirectory(directoryPath);
+        
+        var tabItem = new TabItem
+        {
+            Header = $"📁 {directoryName}",
+            Content = directoryControl
+        };
+        
+        var tabInfo = new TabInfo
+        {
+            Type = TabType.Directory,
+            Title = directoryName,
+            Path = directoryPath,
+            Content = directoryControl,
+            Icon = "📁"
+        };
+        
+        _tabInfos[tabItem] = tabInfo;
+        FileTabControl.Items.Add(tabItem);
+        FileTabControl.SelectedItem = tabItem;
+    }
+    
+    private void OpenTerminalTab()
+    {
+        var terminalControl = new TerminalTabControl();
+        
+        var tabItem = new TabItem
+        {
+            Header = "🤖 LLM Chat",
+            Content = terminalControl
+        };
+        
+        var tabInfo = new TabInfo
+        {
+            Type = TabType.Terminal,
+            Title = "LLM Chat",
+            Content = terminalControl,
+            Icon = "🤖"
+        };
+        
+        _tabInfos[tabItem] = tabInfo;
+        FileTabControl.Items.Add(tabItem);
+        FileTabControl.SelectedItem = tabItem;
+    }
+    
+    private void NewTerminalMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        OpenTerminalTab();
+    }
+    
+    private void NewDirectoryMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(_currentFolderPath))
+        {
+            OpenDirectoryTab(_currentFolderPath);
+        }
+        else
+        {
+            MessageBox.Show("Please open a folder first using File > Open Folder", "No Folder Selected", 
+                          MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 }
