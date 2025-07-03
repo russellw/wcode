@@ -15,16 +15,44 @@ public partial class MainWindow : Window
     private string? _currentFolderPath;
     private Dictionary<string, string> _openFiles = new Dictionary<string, string>();
     private Dictionary<TabItem, TabInfo> _tabInfos = new Dictionary<TabItem, TabInfo>();
+    private ProjectConfig _projectConfig = null!;
     
     public MainWindow()
     {
         InitializeComponent();
         SetupSyntaxHighlighting();
+        InitializeProject();
     }
 
     private void SetupSyntaxHighlighting()
     {
         
+    }
+
+    private void InitializeProject()
+    {
+        // Load project configuration
+        _projectConfig = ProjectConfig.Load();
+        
+        // Set current folder path from config
+        if (!string.IsNullOrEmpty(_projectConfig.CurrentProjectPath) && 
+            Directory.Exists(_projectConfig.CurrentProjectPath))
+        {
+            _currentFolderPath = _projectConfig.CurrentProjectPath;
+            LoadFolderStructure(_currentFolderPath);
+        }
+        
+        // Update title bar
+        UpdateTitleBar();
+    }
+
+    private void UpdateTitleBar()
+    {
+        if (_projectConfig != null)
+        {
+            TitleText.Text = _projectConfig.GetProjectDisplayPath();
+            TitleText.ToolTip = _projectConfig.CurrentProjectPath;
+        }
     }
 
     private void OpenFolderButton_Click(object sender, RoutedEventArgs e)
@@ -37,8 +65,10 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog() == true)
         {
             _currentFolderPath = dialog.FolderName;
+            _projectConfig?.SetCurrentProject(_currentFolderPath);
             LoadFolderStructure(_currentFolderPath);
             OpenDirectoryTab(_currentFolderPath);
+            UpdateTitleBar();
         }
     }
 
@@ -379,5 +409,40 @@ public partial class MainWindow : Window
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         this.Close();
+    }
+    
+    private void ChangeProjectMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Select Project Directory",
+            InitialDirectory = _projectConfig?.CurrentProjectPath ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            _currentFolderPath = dialog.FolderName;
+            _projectConfig?.SetCurrentProject(_currentFolderPath);
+            LoadFolderStructure(_currentFolderPath);
+            UpdateTitleBar();
+            
+            // Optionally refresh any open directory tabs
+            RefreshDirectoryTabs();
+        }
+    }
+    
+    private void RefreshDirectoryTabs()
+    {
+        // Find and refresh any existing directory tabs
+        foreach (var kvp in _tabInfos.ToList())
+        {
+            if (kvp.Value.Type == TabType.Directory && kvp.Value.Content is DirectoryTabControl directoryControl)
+            {
+                if (!string.IsNullOrEmpty(_currentFolderPath))
+                {
+                    directoryControl.LoadDirectory(_currentFolderPath);
+                }
+            }
+        }
     }
 }
