@@ -56,19 +56,66 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             
-            <!-- File Path Bar -->
-            <Border Grid.Row="0" Background="#FF3F3F46" Height="25" BorderBrush="#FF464647" BorderThickness="0,0,0,1">
-                <TextBlock Name="FilePathTextBlock" Text="No file selected" 
-                          Foreground="White" VerticalAlignment="Center" Margin="10,0"/>
-            </Border>
-            
-            <!-- Code Editor -->
-            <avalonEdit:TextEditor Name="CodeEditor" Grid.Row="1" 
-                                  Background="#FF1E1E1E" Foreground="White"
-                                  FontFamily="Consolas" FontSize="12" 
-                                  IsReadOnly="True" ShowLineNumbers="True"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Auto"/>
+            <!-- Tab Control -->
+            <TabControl Name="FileTabControl" Grid.Row="0" Grid.RowSpan="2" Background="#FF1E1E1E">
+                <TabControl.Style>
+                    <Style TargetType="TabControl">
+                        <Setter Property="Background" Value="#FF1E1E1E"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </TabControl.Style>
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Background" Value="#FF2D2D30"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="12,6"/>
+                        <Setter Property="Margin" Value="0,0,1,0"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Grid>
+                                        <Border Name="Border" Background="{TemplateBinding Background}" 
+                                                BorderBrush="#FF464647" BorderThickness="0,0,0,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter Grid.Column="0" ContentSource="Header" 
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                                                Margin="{TemplateBinding Padding}"/>
+                                                <Button Grid.Column="1" Name="CloseButton" Content="×" 
+                                                        Width="16" Height="16" Margin="4,0,4,0"
+                                                        Background="Transparent" BorderThickness="0" 
+                                                        Foreground="White" FontSize="12" FontWeight="Bold"
+                                                        Click="CloseTab_Click" Tag="{Binding RelativeSource={RelativeSource TemplatedParent}}"/>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="#FF007ACC"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="#FF3F3F46"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.ItemContainerStyle>
+                
+                <!-- Welcome Tab -->
+                <TabItem Header="Welcome" Name="WelcomeTab">
+                    <Grid Background="#FF1E1E1E">
+                        <TextBlock Text="Select a file from the tree to open it in a new tab" 
+                                   Foreground="White" FontSize="16" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </TabItem>
+            </TabControl>
         </Grid>
     </Grid>
 </Window>

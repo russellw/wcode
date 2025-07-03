@@ -2,13 +2,17 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.Highlighting;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SourceCodeViewer;
 
 public partial class MainWindow : Window
 {
     private string? _currentFolderPath;
+    private Dictionary<string, string> _openFiles = new Dictionary<string, string>();
     
     public MainWindow()
     {
@@ -18,7 +22,7 @@ public partial class MainWindow : Window
 
     private void SetupSyntaxHighlighting()
     {
-        CodeEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
+        
     }
 
     private void OpenFolderButton_Click(object sender, RoutedEventArgs e)
@@ -109,20 +113,54 @@ public partial class MainWindow : Window
         {
             if (File.Exists(filePath))
             {
-                LoadFile(filePath);
+                OpenFileInTab(filePath);
             }
         }
     }
 
-    private void LoadFile(string filePath)
+    private void OpenFileInTab(string filePath)
     {
+        var fileName = Path.GetFileName(filePath);
+        
+        var existingTab = FileTabControl.Items.Cast<TabItem>()
+            .FirstOrDefault(tab => tab.Tag?.ToString() == filePath);
+        
+        if (existingTab != null)
+        {
+            FileTabControl.SelectedItem = existingTab;
+            return;
+        }
+        
         try
         {
             var content = File.ReadAllText(filePath);
-            CodeEditor.Text = content;
-            FilePathTextBlock.Text = filePath;
             
-            SetSyntaxHighlightingForFile(filePath);
+            var textEditor = new TextEditor
+            {
+                Text = content,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30)),
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                FontSize = 12,
+                IsReadOnly = true,
+                ShowLineNumbers = true,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+            
+            SetSyntaxHighlightingForEditor(textEditor, filePath);
+            
+            var tabItem = new TabItem
+            {
+                Header = fileName,
+                Content = textEditor,
+                Tag = filePath
+            };
+            
+            FileTabControl.Items.Add(tabItem);
+            FileTabControl.SelectedItem = tabItem;
+            
+            _openFiles[filePath] = content;
         }
         catch (Exception ex)
         {
@@ -131,7 +169,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SetSyntaxHighlightingForFile(string filePath)
+    private void SetSyntaxHighlightingForEditor(TextEditor editor, string filePath)
     {
         var extension = Path.GetExtension(filePath).ToLower();
         var highlighting = extension switch
@@ -152,6 +190,24 @@ public partial class MainWindow : Window
             _ => null
         };
 
-        CodeEditor.SyntaxHighlighting = highlighting;
+        editor.SyntaxHighlighting = highlighting;
+    }
+    
+    private void CloseTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is TabItem tabItem)
+        {
+            if (tabItem.Tag is string filePath)
+            {
+                _openFiles.Remove(filePath);
+            }
+            
+            FileTabControl.Items.Remove(tabItem);
+            
+            if (FileTabControl.Items.Count == 1)
+            {
+                FileTabControl.SelectedItem = WelcomeTab;
+            }
+        }
     }
 }
