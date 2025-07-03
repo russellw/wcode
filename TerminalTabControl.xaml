@@ -19,7 +19,7 @@
                 </Grid.ColumnDefinitions>
                 
                 <TextBlock Grid.Column="0" Text="🤖" FontSize="16" VerticalAlignment="Center" Margin="10,0,5,0"/>
-                <TextBlock Grid.Column="1" Text="LLM Chat Terminal" 
+                <TextBlock Grid.Column="1" Name="HeaderText" Text="LLM Chat Terminal" 
                           Foreground="White" VerticalAlignment="Center" FontWeight="Bold"/>
                 <Button Grid.Column="2" Name="ClearButton" Content="🗑️" Width="25" Height="25" 
                         Background="Transparent" BorderThickness="0" Foreground="White"

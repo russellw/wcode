@@ -3,40 +3,99 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.ComponentModel;
 
 namespace wcode;
 
 public partial class TerminalTabControl : UserControl
 {
-    public class ChatMessage
+    public class ChatMessage : INotifyPropertyChanged
     {
+        private string _message = string.Empty;
+        
         public string Sender { get; set; } = string.Empty;
-        public string Message { get; set; } = string.Empty;
+        
+        public string Message 
+        { 
+            get => _message;
+            set
+            {
+                if (_message != value)
+                {
+                    _message = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+        
         public string Timestamp { get; set; } = string.Empty;
         public Brush SenderColor { get; set; } = Brushes.White;
         public Brush BackgroundColor { get; set; } = Brushes.Transparent;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 
     private ObservableCollection<ChatMessage> _messages = new();
+    private OllamaClient? _ollamaClient;
+    private List<wcode.ChatMessage> _conversationHistory = new();
+    private string _currentModel = "";
+    private bool _isConnected = false;
 
     public TerminalTabControl()
     {
         InitializeComponent();
         ChatMessagesControl.ItemsSource = _messages;
         
-        AddWelcomeMessage();
+        InitializeOllamaClient();
     }
 
-    private void AddWelcomeMessage()
+    private async void InitializeOllamaClient()
+    {
+        _ollamaClient = new OllamaClient();
+        
+        AddSystemMessage("Connecting to Ollama server...");
+        
+        _isConnected = await _ollamaClient.IsServerAvailableAsync();
+        
+        if (_isConnected)
+        {
+            var models = await _ollamaClient.GetModelsAsync();
+            if (models.Any())
+            {
+                _currentModel = models.First().Name;
+                HeaderText.Text = $"LLM Chat - {_currentModel}";
+                AddSystemMessage($"✅ Connected to Ollama!\nUsing model: {_currentModel}\nAvailable models: {string.Join(", ", models.Select(m => m.Name))}");
+            }
+            else
+            {
+                HeaderText.Text = "LLM Chat - No Models";
+                AddSystemMessage("⚠️ Connected to Ollama but no models found.\nPlease install a model: ollama pull llama2");
+                _isConnected = false;
+            }
+        }
+        else
+        {
+            HeaderText.Text = "LLM Chat - Disconnected";
+            AddSystemMessage("❌ Could not connect to Ollama server at 192.168.0.63:11434\n\nPlease ensure:\n• Ollama is running\n• Server is accessible on the network\n• Firewall allows connections");
+        }
+    }
+    
+    private void AddSystemMessage(string message)
     {
         _messages.Add(new ChatMessage
         {
             Sender = "System",
-            Message = "Welcome to wcode LLM Chat Terminal!\n\nThis is a placeholder for LLM integration. You can type messages below and they will appear in the chat.\n\nTo integrate with an actual LLM:\n1. Add HTTP client for API calls\n2. Implement authentication\n3. Add streaming response handling\n4. Add code syntax highlighting for responses",
+            Message = message,
             Timestamp = DateTime.Now.ToString("HH:mm:ss"),
             SenderColor = new SolidColorBrush(Color.FromRgb(0, 120, 204)),
             BackgroundColor = new SolidColorBrush(Color.FromRgb(45, 45, 48))
         });
+        ScrollToBottom();
     }
 
     private void SendButton_Click(object sender, RoutedEventArgs e)
@@ -70,41 +129,93 @@ public partial class TerminalTabControl : UserControl
         
         ScrollToBottom();
         
-        SimulateLLMResponse(message);
+        if (_isConnected && _ollamaClient != null)
+        {
+            _ = SendToOllamaAsync(message);
+        }
+        else
+        {
+            AddSystemMessage("❌ Not connected to Ollama server. Please check connection.");
+        }
     }
 
-    private void SimulateLLMResponse(string userMessage)
+    private async Task SendToOllamaAsync(string userMessage)
     {
-        Task.Delay(1000).ContinueWith(_ =>
+        if (_ollamaClient == null) return;
+        
+        // Add user message to conversation history
+        _conversationHistory.Add(new wcode.ChatMessage { Role = "user", Content = userMessage });
+        
+        // Show "thinking" indicator
+        var thinkingMessage = new ChatMessage
         {
-            Dispatcher.Invoke(() =>
-            {
-                var response = GenerateSimulatedResponse(userMessage);
-                
-                _messages.Add(new ChatMessage
-                {
-                    Sender = "LLM",
-                    Message = response,
-                    Timestamp = DateTime.Now.ToString("HH:mm:ss"),
-                    SenderColor = new SolidColorBrush(Color.FromRgb(255, 165, 0)),
-                    BackgroundColor = new SolidColorBrush(Color.FromRgb(25, 25, 35))
-                });
-                
-                ScrollToBottom();
-            });
-        });
-    }
-
-    private string GenerateSimulatedResponse(string userMessage)
-    {
-        var responses = new[]
-        {
-            "I understand you're asking about: " + userMessage + "\n\nThis is a simulated response. To get real LLM responses, you would need to integrate with an API like OpenAI, Anthropic, or run a local model.",
-            "That's an interesting question about: " + userMessage + "\n\nIn a real implementation, this would connect to an LLM service and provide detailed, contextual responses.",
-            "Regarding your message: " + userMessage + "\n\nThis terminal is ready for LLM integration. You could add features like:\n- Code analysis\n- Documentation generation\n- Debugging assistance\n- Architecture suggestions"
+            Sender = "LLM",
+            Message = "🤔 Thinking...",
+            Timestamp = DateTime.Now.ToString("HH:mm:ss"),
+            SenderColor = new SolidColorBrush(Color.FromRgb(255, 165, 0)),
+            BackgroundColor = new SolidColorBrush(Color.FromRgb(25, 25, 35))
         };
-
-        return responses[new Random().Next(responses.Length)];
+        _messages.Add(thinkingMessage);
+        ScrollToBottom();
+        
+        try
+        {
+            var responseMessage = new ChatMessage
+            {
+                Sender = "LLM",
+                Message = "",
+                Timestamp = DateTime.Now.ToString("HH:mm:ss"),
+                SenderColor = new SolidColorBrush(Color.FromRgb(255, 165, 0)),
+                BackgroundColor = new SolidColorBrush(Color.FromRgb(25, 25, 35))
+            };
+            
+            // Remove thinking message and add response message
+            _messages.Remove(thinkingMessage);
+            _messages.Add(responseMessage);
+            
+            // Stream the response
+            var fullResponse = "";
+            var hasReceivedData = false;
+            
+            await foreach (var chunk in _ollamaClient.ChatStreamAsync(_currentModel, userMessage, _conversationHistory.Take(_conversationHistory.Count - 1).ToList()))
+            {
+                hasReceivedData = true;
+                fullResponse += chunk;
+                
+                // Update on UI thread
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    responseMessage.Message = fullResponse;
+                    ScrollToBottom();
+                }, System.Windows.Threading.DispatcherPriority.Normal);
+                
+                // Small delay to make streaming visible
+                await Task.Delay(50);
+            }
+            
+            // If no streaming data was received, try regular chat
+            if (!hasReceivedData)
+            {
+                var regularResponse = await _ollamaClient.ChatAsync(_currentModel, userMessage, _conversationHistory.Take(_conversationHistory.Count - 1).ToList());
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    responseMessage.Message = regularResponse;
+                    ScrollToBottom();
+                });
+                fullResponse = regularResponse;
+            }
+            
+            // Add assistant response to conversation history
+            if (!string.IsNullOrEmpty(fullResponse))
+            {
+                _conversationHistory.Add(new wcode.ChatMessage { Role = "assistant", Content = fullResponse });
+            }
+        }
+        catch (Exception ex)
+        {
+            _messages.Remove(thinkingMessage);
+            AddSystemMessage($"❌ Error communicating with Ollama: {ex.Message}");
+        }
     }
 
     private void ScrollToBottom()
@@ -115,6 +226,14 @@ public partial class TerminalTabControl : UserControl
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
         _messages.Clear();
-        AddWelcomeMessage();
+        _conversationHistory.Clear();
+        if (_isConnected)
+        {
+            AddSystemMessage($"Chat cleared. Using model: {_currentModel}");
+        }
+        else
+        {
+            AddSystemMessage("Chat cleared. Not connected to Ollama server.");
+        }
     }
 }
