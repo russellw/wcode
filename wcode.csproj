@@ -7,6 +7,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>wcode</AssemblyName>
+    <RootNamespace>wcode</RootNamespace>
+    <AssemblyTitle>wcode - Source Code Viewer</AssemblyTitle>
+    <Product>wcode</Product>
+    <AssemblyDescription>Multi-tab source code viewer with directory browsing and LLM chat integration</AssemblyDescription>
   </PropertyGroup>
 
   <ItemGroup>

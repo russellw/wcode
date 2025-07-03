@@ -7,7 +7,7 @@ using ICSharpCode.AvalonEdit.Highlighting;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SourceCodeViewer;
+namespace wcode;
 
 public partial class MainWindow : Window
 {

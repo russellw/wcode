@@ -1,7 +1,7 @@
 using System.Windows.Controls;
 using System.Windows;
 
-namespace SourceCodeViewer;
+namespace wcode;
 
 public enum TabType
 {

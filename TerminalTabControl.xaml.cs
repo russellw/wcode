@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace SourceCodeViewer;
+namespace wcode;
 
 public partial class TerminalTabControl : UserControl
 {
@@ -32,7 +32,7 @@ public partial class TerminalTabControl : UserControl
         _messages.Add(new ChatMessage
         {
             Sender = "System",
-            Message = "Welcome to the LLM Chat Terminal!\n\nThis is a placeholder for LLM integration. You can type messages below and they will appear in the chat.\n\nTo integrate with an actual LLM:\n1. Add HTTP client for API calls\n2. Implement authentication\n3. Add streaming response handling\n4. Add code syntax highlighting for responses",
+            Message = "Welcome to wcode LLM Chat Terminal!\n\nThis is a placeholder for LLM integration. You can type messages below and they will appear in the chat.\n\nTo integrate with an actual LLM:\n1. Add HTTP client for API calls\n2. Implement authentication\n3. Add streaming response handling\n4. Add code syntax highlighting for responses",
             Timestamp = DateTime.Now.ToString("HH:mm:ss"),
             SenderColor = new SolidColorBrush(Color.FromRgb(0, 120, 204)),
             BackgroundColor = new SolidColorBrush(Color.FromRgb(45, 45, 48))

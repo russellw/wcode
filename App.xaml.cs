@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace SourceCodeViewer;
+namespace wcode;
 
 public partial class App : Application
 {

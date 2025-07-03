@@ -3,7 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace SourceCodeViewer;
+namespace wcode;
 
 public partial class DirectoryTabControl : UserControl
 {
