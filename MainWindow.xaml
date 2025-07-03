@@ -50,16 +50,34 @@
                             </Style>
                         </Menu.Resources>
                         <MenuItem Header="_File">
-                            <MenuItem Header="_Open File..." Click="OpenFileMenuItem_Click" InputGestureText="Ctrl+O"/>
-                            <MenuItem Header="Open _Folder..." Click="OpenFolderMenuItem_Click" InputGestureText="Ctrl+Shift+O"/>
-                            <Separator/>
-                            <MenuItem Header="Change _Project..." Click="ChangeProjectMenuItem_Click" InputGestureText="Ctrl+Shift+P"/>
-                            <Separator/>
-                            <MenuItem Header="E_xit" Click="ExitMenuItem_Click" InputGestureText="Alt+F4"/>
+                            <MenuItem.Style>
+                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Style>
+                            </MenuItem.Style>
+                            <MenuItem Header="_Open File..." Click="OpenFileMenuItem_Click" InputGestureText="Ctrl+O"
+                                     Background="#FF2D2D30" Foreground="White"/>
+                            <MenuItem Header="Open _Folder..." Click="OpenFolderMenuItem_Click" InputGestureText="Ctrl+Shift+O"
+                                     Background="#FF2D2D30" Foreground="White"/>
+                            <Separator Background="#FF464647"/>
+                            <MenuItem Header="Change _Project..." Click="ChangeProjectMenuItem_Click" InputGestureText="Ctrl+Shift+P"
+                                     Background="#FF2D2D30" Foreground="White"/>
+                            <Separator Background="#FF464647"/>
+                            <MenuItem Header="E_xit" Click="ExitMenuItem_Click" InputGestureText="Alt+F4"
+                                     Background="#FF2D2D30" Foreground="White"/>
                         </MenuItem>
                         <MenuItem Header="_View">
-                            <MenuItem Header="New _Terminal Tab" Click="NewTerminalMenuItem_Click" InputGestureText="Ctrl+T"/>
-                            <MenuItem Header="New _Directory Tab" Click="NewDirectoryMenuItem_Click" InputGestureText="Ctrl+D"/>
+                            <MenuItem.Style>
+                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Style>
+                            </MenuItem.Style>
+                            <MenuItem Header="New _Terminal Tab" Click="NewTerminalMenuItem_Click" InputGestureText="Ctrl+T"
+                                     Background="#FF2D2D30" Foreground="White"/>
+                            <MenuItem Header="New _Directory Tab" Click="NewDirectoryMenuItem_Click" InputGestureText="Ctrl+D"
+                                     Background="#FF2D2D30" Foreground="White"/>
                         </MenuItem>
                     </Menu>
                 </StackPanel>
