@@ -210,4 +210,41 @@ public partial class MainWindow : Window
             }
         }
     }
+
+    private void OpenFileMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Open File",
+            Filter = "All Supported Files|*.cs;*.cpp;*.c;*.h;*.hpp;*.java;*.js;*.ts;*.py;*.rb;*.php;*.html;*.htm;*.css;*.scss;*.sass;*.xml;*.json;*.yaml;*.yml;*.txt;*.md;*.sql;*.sh;*.bat;*.ps1;*.vb;*.fs;*.go;*.rs;*.swift;*.kt;*.scala;*.clj;*.pl;*.r;*.m;*.mm;*.xaml|" +
+                   "C# Files (*.cs)|*.cs|" +
+                   "C++ Files (*.cpp;*.c;*.h;*.hpp)|*.cpp;*.c;*.h;*.hpp|" +
+                   "Java Files (*.java)|*.java|" +
+                   "JavaScript Files (*.js)|*.js|" +
+                   "TypeScript Files (*.ts)|*.ts|" +
+                   "Python Files (*.py)|*.py|" +
+                   "HTML Files (*.html;*.htm)|*.html;*.htm|" +
+                   "CSS Files (*.css)|*.css|" +
+                   "XML Files (*.xml;*.xaml)|*.xml;*.xaml|" +
+                   "JSON Files (*.json)|*.json|" +
+                   "Text Files (*.txt)|*.txt|" +
+                   "Markdown Files (*.md)|*.md|" +
+                   "All Files (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            OpenFileInTab(dialog.FileName);
+        }
+    }
+
+    private void OpenFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        OpenFolderButton_Click(sender, e);
+    }
+
+    private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        Application.Current.Shutdown();
+    }
 }
