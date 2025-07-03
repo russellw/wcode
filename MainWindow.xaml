@@ -3,47 +3,118 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
         Title="wcode" Height="600" Width="1000"
-        WindowStartupLocation="CenterScreen" WindowState="Maximized">
+        WindowStartupLocation="CenterScreen" WindowState="Maximized"
+        WindowStyle="None" AllowsTransparency="False" ResizeMode="CanResize">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
-        <!-- Menu Bar -->
-        <Menu Grid.Row="0" Background="#FF2D2D30" Foreground="White">
-            <Menu.Resources>
-                <Style TargetType="MenuItem">
-                    <Setter Property="Background" Value="#FF2D2D30"/>
-                    <Setter Property="Foreground" Value="White"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Style.Triggers>
-                        <Trigger Property="IsHighlighted" Value="True">
-                            <Setter Property="Background" Value="#FF007ACC"/>
-                            <Setter Property="Foreground" Value="White"/>
-                        </Trigger>
-                        <Trigger Property="IsSubmenuOpen" Value="True">
-                            <Setter Property="Background" Value="#FF007ACC"/>
-                            <Setter Property="Foreground" Value="White"/>
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-                <Style TargetType="Separator">
-                    <Setter Property="Background" Value="#FF464647"/>
-                    <Setter Property="Margin" Value="0,2"/>
-                </Style>
-            </Menu.Resources>
-            <MenuItem Header="_File">
-                <MenuItem Header="_Open File..." Click="OpenFileMenuItem_Click" InputGestureText="Ctrl+O"/>
-                <MenuItem Header="Open _Folder..." Click="OpenFolderMenuItem_Click" InputGestureText="Ctrl+Shift+O"/>
-                <Separator/>
-                <MenuItem Header="E_xit" Click="ExitMenuItem_Click" InputGestureText="Alt+F4"/>
-            </MenuItem>
-            <MenuItem Header="_View">
-                <MenuItem Header="New _Terminal Tab" Click="NewTerminalMenuItem_Click" InputGestureText="Ctrl+T"/>
-                <MenuItem Header="New _Directory Tab" Click="NewDirectoryMenuItem_Click" InputGestureText="Ctrl+D"/>
-            </MenuItem>
-        </Menu>
+        <!-- Custom Title Bar -->
+        <Border Grid.Row="0" Background="#FF2D2D30" Height="32" BorderBrush="#FF464647" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Left: Menu and Title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Application Icon -->
+                    <TextBlock Text="⚡" FontSize="16" Foreground="White" VerticalAlignment="Center" Margin="8,0,8,0"/>
+                    
+                    <!-- Menu -->
+                    <Menu Background="Transparent" VerticalAlignment="Center">
+                        <Menu.Resources>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="8,4"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsHighlighted" Value="True">
+                                        <Setter Property="Background" Value="#FF007ACC"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSubmenuOpen" Value="True">
+                                        <Setter Property="Background" Value="#FF007ACC"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                            <Style TargetType="Separator">
+                                <Setter Property="Background" Value="#FF464647"/>
+                                <Setter Property="Margin" Value="0,2"/>
+                            </Style>
+                        </Menu.Resources>
+                        <MenuItem Header="_File">
+                            <MenuItem Header="_Open File..." Click="OpenFileMenuItem_Click" InputGestureText="Ctrl+O"/>
+                            <MenuItem Header="Open _Folder..." Click="OpenFolderMenuItem_Click" InputGestureText="Ctrl+Shift+O"/>
+                            <Separator/>
+                            <MenuItem Header="E_xit" Click="ExitMenuItem_Click" InputGestureText="Alt+F4"/>
+                        </MenuItem>
+                        <MenuItem Header="_View">
+                            <MenuItem Header="New _Terminal Tab" Click="NewTerminalMenuItem_Click" InputGestureText="Ctrl+T"/>
+                            <MenuItem Header="New _Directory Tab" Click="NewDirectoryMenuItem_Click" InputGestureText="Ctrl+D"/>
+                        </MenuItem>
+                    </Menu>
+                </StackPanel>
+                
+                <!-- Center: Title (draggable area) -->
+                <TextBlock Grid.Column="1" Name="TitleText" Text="wcode" 
+                          Foreground="White" FontWeight="SemiBold" FontSize="13"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"/>
+                
+                <!-- Right: Window Controls -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Name="MinimizeButton" Content="🗕" Width="46" Height="32" 
+                            Background="Transparent" BorderThickness="0" Foreground="White"
+                            Click="MinimizeButton_Click" FontSize="10">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#FF404040"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Name="MaximizeButton" Content="🗖" Width="46" Height="32" 
+                            Background="Transparent" BorderThickness="0" Foreground="White"
+                            Click="MaximizeButton_Click" FontSize="10">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#FF404040"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Name="CloseButton" Content="🗙" Width="46" Height="32" 
+                            Background="Transparent" BorderThickness="0" Foreground="White"
+                            Click="CloseButton_Click" FontSize="10">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#FFE81123"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
         
         <!-- Main Content -->
         <Grid Grid.Row="1">

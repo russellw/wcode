@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.Win32;
 using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.Highlighting;
@@ -339,5 +340,44 @@ public partial class MainWindow : Window
             MessageBox.Show("Please open a folder first using File > Open Folder", "No Folder Selected", 
                           MessageBoxButton.OK, MessageBoxImage.Information);
         }
+    }
+    
+    // Custom title bar event handlers
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            // Double-click to maximize/restore
+            MaximizeButton_Click(sender, e);
+        }
+        else
+        {
+            // Single click to drag
+            this.DragMove();
+        }
+    }
+    
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        this.WindowState = WindowState.Minimized;
+    }
+    
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (this.WindowState == WindowState.Maximized)
+        {
+            this.WindowState = WindowState.Normal;
+            MaximizeButton.Content = "🗖";
+        }
+        else
+        {
+            this.WindowState = WindowState.Maximized;
+            MaximizeButton.Content = "🗗";
+        }
+    }
+    
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        this.Close();
     }
 }
