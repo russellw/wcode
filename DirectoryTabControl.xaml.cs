@@ -22,6 +22,9 @@ public partial class DirectoryTabControl : UserControl
     
     // Event to notify parent window to open files
     public event Action<string>? FileOpenRequested;
+    
+    // Event to notify parent window to open directories in new tabs
+    public event Action<string>? DirectoryOpenRequested;
 
     public DirectoryTabControl()
     {
@@ -118,8 +121,8 @@ public partial class DirectoryTabControl : UserControl
         {
             if (item.IsDirectory)
             {
-                // Navigate to subdirectory
-                LoadDirectory(item.Path);
+                // Open directory in new tab
+                DirectoryOpenRequested?.Invoke(item.Path);
             }
             else
             {

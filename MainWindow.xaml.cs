@@ -254,6 +254,9 @@ public partial class MainWindow : Window
         // Subscribe to file open requests
         directoryControl.FileOpenRequested += OpenFileInTab;
         
+        // Subscribe to directory open requests
+        directoryControl.DirectoryOpenRequested += OpenDirectoryTab;
+        
         var tabItem = new TabItem
         {
             Header = $"📁 {directoryName}",
