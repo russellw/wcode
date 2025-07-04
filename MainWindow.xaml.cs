@@ -22,6 +22,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         SetupSyntaxHighlighting();
         InitializeProject();
+        OpenDefaultTabs();
     }
 
     private void SetupSyntaxHighlighting()
@@ -43,6 +44,18 @@ public partial class MainWindow : Window
         
         // Update title bar
         UpdateTitleBar();
+    }
+
+    private void OpenDefaultTabs()
+    {
+        // Open terminal tab first
+        OpenTerminalTab();
+        
+        // Open directory tab for current project if available
+        if (!string.IsNullOrEmpty(_currentFolderPath) && Directory.Exists(_currentFolderPath))
+        {
+            OpenDirectoryTab(_currentFolderPath);
+        }
     }
 
     private void UpdateTitleBar()
@@ -171,11 +184,6 @@ public partial class MainWindow : Window
             }
             
             FileTabControl.Items.Remove(tabItem);
-            
-            if (FileTabControl.Items.Count == 1)
-            {
-                FileTabControl.SelectedItem = WelcomeTab;
-            }
         }
     }
 

@@ -167,14 +167,6 @@
                     </Style>
                 </TabControl.ItemContainerStyle>
                 
-                <!-- Welcome Tab -->
-                <TabItem Header="Welcome" Name="WelcomeTab">
-                    <Grid Background="#FF1E1E1E">
-                        <TextBlock Text="Select a file from the tree to open it in a new tab" 
-                                   Foreground="White" FontSize="16" 
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Grid>
-                </TabItem>
             </TabControl>
         </Grid>
     </Grid>
