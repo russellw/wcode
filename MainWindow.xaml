@@ -22,9 +22,6 @@
                 
                 <!-- Left: Menu and Title -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Application Icon -->
-                    <TextBlock Text="⚡" FontSize="16" Foreground="White" VerticalAlignment="Center" Margin="8,0,8,0"/>
-                    
                     <!-- Menu -->
                     <Menu Background="Transparent" VerticalAlignment="Center">
                         <Menu.Resources>
