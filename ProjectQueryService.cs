@@ -117,11 +117,11 @@ public class ProjectQueryService
         };
     }
 
-    private async Task<QueryResult> ListFilesAsync(string directory)
+    private Task<QueryResult> ListFilesAsync(string directory)
     {
         if (!Directory.Exists(directory))
         {
-            return new QueryResult { Success = false, Message = $"Directory not found: {directory}" };
+            return Task.FromResult(new QueryResult { Success = false, Message = $"Directory not found: {directory}" });
         }
 
         var files = new List<string>();
@@ -143,7 +143,7 @@ public class ProjectQueryService
         }
         catch (UnauthorizedAccessException)
         {
-            return new QueryResult { Success = false, Message = "Access denied to directory" };
+            return Task.FromResult(new QueryResult { Success = false, Message = "Access denied to directory" });
         }
 
         var relativePath = Path.GetRelativePath(_projectPath, directory);
@@ -170,12 +170,12 @@ public class ProjectQueryService
             }
         }
 
-        return new QueryResult 
+        return Task.FromResult(new QueryResult 
         { 
             Success = true, 
             Message = result.ToString(),
             Data = new { Directory = relativePath, Files = files, Directories = directories }
-        };
+        });
     }
 
     private async Task<QueryResult> SearchFilesAsync(string searchPath, string searchTerm)
@@ -255,7 +255,7 @@ public class ProjectQueryService
 
     private async Task<QueryResult> GetProjectStructureAsync()
     {
-        var structure = await BuildDirectoryTreeAsync(_projectPath, "", 0, 3); // Max depth 3
+        var structure = await Task.Run(() => BuildDirectoryTree(_projectPath, "", 0, 3)); // Max depth 3
         
         return new QueryResult 
         { 
@@ -402,7 +402,7 @@ public class ProjectQueryService
     }
 
     // Helper methods
-    private async Task<string> BuildDirectoryTreeAsync(string path, string indent, int currentDepth, int maxDepth)
+    private string BuildDirectoryTree(string path, string indent, int currentDepth, int maxDepth)
     {
         if (currentDepth >= maxDepth) return "";
         
@@ -419,7 +419,7 @@ public class ProjectQueryService
                 result.AppendLine($"{indent}📁 {dir.Name}/");
                 if (currentDepth < maxDepth - 1)
                 {
-                    result.Append(await BuildDirectoryTreeAsync(dir.FullName, indent + "  ", currentDepth + 1, maxDepth));
+                    result.Append(BuildDirectoryTree(dir.FullName, indent + "  ", currentDepth + 1, maxDepth));
                 }
             }
 
@@ -477,7 +477,7 @@ public class ProjectQueryService
         return "";
     }
 
-    private string ExtractDirectoryPath(string query)
+    private string? ExtractDirectoryPath(string query)
     {
         var matches = System.Text.RegularExpressions.Regex.Matches(query, @"""([^""]+)""");
         if (matches.Any())
