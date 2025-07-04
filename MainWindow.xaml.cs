@@ -74,19 +74,8 @@ public partial class MainWindow : Window
 
     private void LoadFolderStructure(string folderPath)
     {
-        FileTreeView.Items.Clear();
-        
-        try
-        {
-            var rootItem = CreateTreeViewItem(new DirectoryInfo(folderPath));
-            FileTreeView.Items.Add(rootItem);
-            rootItem.IsExpanded = true;
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error loading folder: {ex.Message}", "Error", 
-                          MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+        // File tree removed - this method is now a stub
+        // Directory content will be shown in directory tabs instead
     }
 
     private TreeViewItem CreateTreeViewItem(DirectoryInfo directoryInfo)
@@ -142,13 +131,7 @@ public partial class MainWindow : Window
 
     private void FileTreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
-        if (e.NewValue is TreeViewItem selectedItem && selectedItem.Tag is string filePath)
-        {
-            if (File.Exists(filePath))
-            {
-                OpenFileInTab(filePath);
-            }
-        }
+        // File tree removed - this method is now a stub
     }
 
     private void OpenFileInTab(string filePath)
