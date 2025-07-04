@@ -39,7 +39,6 @@ public partial class MainWindow : Window
             Directory.Exists(_projectConfig.CurrentProjectPath))
         {
             _currentFolderPath = _projectConfig.CurrentProjectPath;
-            LoadFolderStructure(_currentFolderPath);
         }
         
         // Update title bar
@@ -55,66 +54,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OpenFolderButton_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new OpenFolderDialog
-        {
-            Title = "Select Folder to Browse"
-        };
 
-        if (dialog.ShowDialog() == true)
-        {
-            _currentFolderPath = dialog.FolderName;
-            _projectConfig?.SetCurrentProject(_currentFolderPath);
-            LoadFolderStructure(_currentFolderPath);
-            OpenDirectoryTab(_currentFolderPath);
-            UpdateTitleBar();
-        }
-    }
 
-    private void LoadFolderStructure(string folderPath)
-    {
-        // File tree removed - this method is now a stub
-        // Directory content will be shown in directory tabs instead
-    }
 
-    private TreeViewItem CreateTreeViewItem(DirectoryInfo directoryInfo)
-    {
-        var item = new TreeViewItem
-        {
-            Header = directoryInfo.Name,
-            Tag = directoryInfo.FullName
-        };
 
-        try
-        {
-            foreach (var directory in directoryInfo.GetDirectories())
-            {
-                if (!directory.Name.StartsWith("."))
-                {
-                    item.Items.Add(CreateTreeViewItem(directory));
-                }
-            }
-
-            foreach (var file in directoryInfo.GetFiles())
-            {
-                if (IsTextFile(file.Extension))
-                {
-                    var fileItem = new TreeViewItem
-                    {
-                        Header = file.Name,
-                        Tag = file.FullName
-                    };
-                    item.Items.Add(fileItem);
-                }
-            }
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-
-        return item;
-    }
 
     private bool IsTextFile(string extension)
     {
@@ -127,11 +70,6 @@ public partial class MainWindow : Window
         };
         
         return textExtensions.Contains(extension.ToLower());
-    }
-
-    private void FileTreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
-    {
-        // File tree removed - this method is now a stub
     }
 
     private void OpenFileInTab(string filePath)
@@ -270,7 +208,18 @@ public partial class MainWindow : Window
 
     private void OpenFolderMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        OpenFolderButton_Click(sender, e);
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Select Folder to Browse"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            _currentFolderPath = dialog.FolderName;
+            _projectConfig?.SetCurrentProject(_currentFolderPath);
+            OpenDirectoryTab(_currentFolderPath);
+            UpdateTitleBar();
+        }
     }
 
     private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
@@ -406,7 +355,6 @@ public partial class MainWindow : Window
         {
             _currentFolderPath = dialog.FolderName;
             _projectConfig?.SetCurrentProject(_currentFolderPath);
-            LoadFolderStructure(_currentFolderPath);
             UpdateTitleBar();
             
             // Optionally refresh any open directory tabs
