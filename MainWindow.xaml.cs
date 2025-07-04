@@ -251,6 +251,9 @@ public partial class MainWindow : Window
         var directoryControl = new DirectoryTabControl();
         directoryControl.LoadDirectory(directoryPath);
         
+        // Subscribe to file open requests
+        directoryControl.FileOpenRequested += OpenFileInTab;
+        
         var tabItem = new TabItem
         {
             Header = $"📁 {directoryName}",

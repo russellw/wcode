@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace wcode;
 
@@ -18,6 +19,9 @@ public partial class DirectoryTabControl : UserControl
 
     private ObservableCollection<DirectoryItem> _items = new();
     private string? _currentPath;
+    
+    // Event to notify parent window to open files
+    public event Action<string>? FileOpenRequested;
 
     public DirectoryTabControl()
     {
@@ -106,5 +110,45 @@ public partial class DirectoryTabControl : UserControl
     private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
         RefreshDirectory();
+    }
+    
+    private void DirectoryItem_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Border border && border.DataContext is DirectoryItem item)
+        {
+            if (item.IsDirectory)
+            {
+                // Navigate to subdirectory
+                LoadDirectory(item.Path);
+            }
+            else
+            {
+                // Check if it's a text file that can be opened
+                if (IsTextFile(item.Path))
+                {
+                    // Notify parent to open the file
+                    FileOpenRequested?.Invoke(item.Path);
+                }
+                else
+                {
+                    MessageBox.Show($"File type not supported for viewing: {Path.GetExtension(item.Path)}", 
+                                  "Unsupported File Type", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+        }
+    }
+    
+    private bool IsTextFile(string filePath)
+    {
+        var extension = Path.GetExtension(filePath).ToLower();
+        var textExtensions = new[]
+        {
+            ".cs", ".cpp", ".c", ".h", ".hpp", ".java", ".js", ".ts", ".py", ".rb", ".php",
+            ".html", ".htm", ".css", ".scss", ".sass", ".xml", ".json", ".yaml", ".yml",
+            ".txt", ".md", ".sql", ".sh", ".bat", ".ps1", ".vb", ".fs", ".go", ".rs",
+            ".swift", ".kt", ".scala", ".clj", ".pl", ".r", ".m", ".mm", ".xaml"
+        };
+        
+        return textExtensions.Contains(extension);
     }
 }

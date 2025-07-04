@@ -37,7 +37,8 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border Background="Transparent" BorderBrush="#FF464647" BorderThickness="1" 
-                                Margin="5" Padding="15" CornerRadius="8" Width="200" Height="120">
+                                Margin="5" Padding="15" CornerRadius="8" Width="200" Height="120"
+                                MouseLeftButtonUp="DirectoryItem_Click" Cursor="Hand">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Style.Triggers>
