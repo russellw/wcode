@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.ComponentModel;
+using System.IO;
 
 namespace wcode;
 
@@ -45,6 +46,7 @@ public partial class TerminalTabControl : UserControl
     private List<wcode.ChatMessage> _conversationHistory = new();
     private string _currentModel = "";
     private bool _isConnected = false;
+    private ConversationLogger? _conversationLogger;
 
     public TerminalTabControl()
     {
@@ -52,6 +54,26 @@ public partial class TerminalTabControl : UserControl
         ChatMessagesControl.ItemsSource = _messages;
         
         InitializeOllamaClient();
+        InitializeLogging();
+    }
+
+    private void InitializeLogging()
+    {
+        try
+        {
+            // Get current project path from config
+            var projectConfig = ProjectConfig.Load();
+            if (projectConfig.LoggingEnabled && 
+                !string.IsNullOrEmpty(projectConfig.CurrentProjectPath) && 
+                Directory.Exists(projectConfig.CurrentProjectPath))
+            {
+                _conversationLogger = new ConversationLogger(projectConfig.CurrentProjectPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to initialize conversation logging: {ex.Message}");
+        }
     }
 
     private async void InitializeOllamaClient()
@@ -125,6 +147,22 @@ public partial class TerminalTabControl : UserControl
             BackgroundColor = new SolidColorBrush(Color.FromRgb(30, 30, 30))
         });
 
+        // Log user message
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_conversationLogger != null)
+                {
+                    await _conversationLogger.LogConversationAsync("User", message);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to log user message: {ex.Message}");
+            }
+        });
+
         MessageInput.Clear();
         
         ScrollToBottom();
@@ -160,6 +198,8 @@ public partial class TerminalTabControl : UserControl
         
         try
         {
+            var startTime = DateTime.Now;
+            
             var responseMessage = new ChatMessage
             {
                 Sender = "LLM",
@@ -209,6 +249,23 @@ public partial class TerminalTabControl : UserControl
             if (!string.IsNullOrEmpty(fullResponse))
             {
                 _conversationHistory.Add(new wcode.ChatMessage { Role = "assistant", Content = fullResponse });
+                
+                // Log LLM response
+                var responseTime = (int)(DateTime.Now - startTime).TotalMilliseconds;
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (_conversationLogger != null)
+                        {
+                            await _conversationLogger.LogConversationAsync("LLM", fullResponse, _currentModel, 0, responseTime);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to log LLM response: {ex.Message}");
+                    }
+                });
             }
         }
         catch (Exception ex)

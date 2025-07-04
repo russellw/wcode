@@ -14,6 +14,9 @@ public class ProjectConfig
     
     [JsonPropertyName("lastOpened")]
     public DateTime LastOpened { get; set; } = DateTime.Now;
+    
+    [JsonPropertyName("loggingEnabled")]
+    public bool LoggingEnabled { get; set; } = true;
 
     private static string ConfigFilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
@@ -249,5 +252,19 @@ public class ProjectConfig
         {
             return CurrentProjectPath;
         }
+    }
+
+    public string GetLogFilePath(string logType)
+    {
+        if (string.IsNullOrEmpty(CurrentProjectPath))
+            return "";
+
+        return logType.ToLower() switch
+        {
+            "markdown" => Path.Combine(CurrentProjectPath, "llm_conversations.md"),
+            "json" => Path.Combine(CurrentProjectPath, "llm_conversations.json"),
+            "sqlite" => Path.Combine(CurrentProjectPath, "llm_conversations.db"),
+            _ => ""
+        };
     }
 }
