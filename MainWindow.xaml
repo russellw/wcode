@@ -32,7 +32,7 @@
                                 <Setter Property="Background" Value="#FF2D2D30"/>
                                 <Setter Property="Foreground" Value="White"/>
                                 <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="Padding" Value="8,4"/>
+                                <Setter Property="Padding" Value="0,12"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsHighlighted" Value="True">
                                         <Setter Property="Background" Value="#FF007ACC"/>
@@ -45,6 +45,7 @@
                                     <!-- Special handling for top-level menu items -->
                                     <Trigger Property="Role" Value="TopLevelHeader">
                                         <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="Padding" Value="16,4"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
