@@ -4,30 +4,16 @@
         xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
         Title="wcode" Height="600" Width="1000"
         WindowStartupLocation="CenterScreen" WindowState="Maximized"
-        ResizeMode="CanResize">
+        ResizeMode="CanResize" KeyDown="MainWindow_KeyDown">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
-        <!-- Menu Bar -->
-        <Menu Grid.Row="0">
-            <MenuItem Header="_File">
-                <MenuItem Header="_Open File..." Click="OpenFileMenuItem_Click" InputGestureText="Ctrl+O"/>
-                <MenuItem Header="Open _Folder..." Click="OpenFolderMenuItem_Click" InputGestureText="Ctrl+Shift+O"/>
-                <MenuItem Header="Change _Project..." Click="ChangeProjectMenuItem_Click" InputGestureText="Ctrl+Shift+P"/>
-                <Separator/>
-                <MenuItem Header="E_xit" Click="ExitMenuItem_Click" InputGestureText="Alt+F4"/>
-            </MenuItem>
-            <MenuItem Header="_View">
-                <MenuItem Header="New _Terminal Tab" Click="NewTerminalMenuItem_Click" InputGestureText="Ctrl+T"/>
-                <MenuItem Header="New _Directory Tab" Click="NewDirectoryMenuItem_Click" InputGestureText="Ctrl+D"/>
-            </MenuItem>
-        </Menu>
         
         <!-- Main Content -->
-        <Grid Grid.Row="1" Background="#FF1E1E1E">
+        <Grid Grid.Row="0" Grid.RowSpan="2" Background="#FF1E1E1E">
             <!-- Tab Control -->
             <TabControl Name="FileTabControl" Background="#FF1E1E1E">
                 <TabControl.Style>

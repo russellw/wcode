@@ -317,6 +317,15 @@ public partial class MainWindow : Window
         }
     }
     
+    private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+    {
+        // Handle Alt+F4 to close the window
+        if (e.Key == Key.F4 && Keyboard.Modifiers == ModifierKeys.Alt)
+        {
+            this.Close();
+            e.Handled = true;
+        }
+    }
     
     private void ChangeProjectMenuItem_Click(object sender, RoutedEventArgs e)
     {
