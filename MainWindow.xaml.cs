@@ -42,8 +42,8 @@ public partial class MainWindow : Window
             _currentFolderPath = _projectConfig.CurrentProjectPath;
         }
         
-        // Update title bar
-        UpdateTitleBar();
+        // Update title
+        UpdateTitle();
     }
 
     private void OpenDefaultTabs()
@@ -58,12 +58,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private void UpdateTitleBar()
+    private void UpdateTitle()
     {
         if (_projectConfig != null)
         {
-            TitleText.Text = _projectConfig.GetProjectDisplayPath();
-            TitleText.ToolTip = _projectConfig.CurrentProjectPath;
+            this.Title = $"wcode - {_projectConfig.GetProjectDisplayPath()}";
         }
     }
 
@@ -226,7 +225,7 @@ public partial class MainWindow : Window
             _currentFolderPath = dialog.FolderName;
             _projectConfig?.SetCurrentProject(_currentFolderPath);
             OpenDirectoryTab(_currentFolderPath);
-            UpdateTitleBar();
+            UpdateTitle();
         }
     }
 
@@ -318,44 +317,6 @@ public partial class MainWindow : Window
         }
     }
     
-    // Custom title bar event handlers
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ClickCount == 2)
-        {
-            // Double-click to maximize/restore
-            MaximizeButton_Click(sender, e);
-        }
-        else
-        {
-            // Single click to drag
-            this.DragMove();
-        }
-    }
-    
-    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.WindowState = WindowState.Minimized;
-    }
-    
-    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (this.WindowState == WindowState.Maximized)
-        {
-            this.WindowState = WindowState.Normal;
-            MaximizeButton.Content = "🗖";
-        }
-        else
-        {
-            this.WindowState = WindowState.Maximized;
-            MaximizeButton.Content = "🗗";
-        }
-    }
-    
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.Close();
-    }
     
     private void ChangeProjectMenuItem_Click(object sender, RoutedEventArgs e)
     {
@@ -369,7 +330,7 @@ public partial class MainWindow : Window
         {
             _currentFolderPath = dialog.FolderName;
             _projectConfig?.SetCurrentProject(_currentFolderPath);
-            UpdateTitleBar();
+            UpdateTitle();
             
             // Optionally refresh any open directory tabs
             RefreshDirectoryTabs();
