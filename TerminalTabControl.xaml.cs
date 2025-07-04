@@ -47,6 +47,7 @@ public partial class TerminalTabControl : UserControl
     private string _currentModel = "";
     private bool _isConnected = false;
     private ConversationLogger? _conversationLogger;
+    private ProjectQueryService? _queryService;
 
     public TerminalTabControl()
     {
@@ -68,6 +69,7 @@ public partial class TerminalTabControl : UserControl
                 Directory.Exists(projectConfig.CurrentProjectPath))
             {
                 _conversationLogger = new ConversationLogger(projectConfig.CurrentProjectPath);
+                _queryService = new ProjectQueryService(projectConfig.CurrentProjectPath);
             }
         }
         catch (Exception ex)
@@ -181,6 +183,13 @@ public partial class TerminalTabControl : UserControl
     {
         if (_ollamaClient == null) return;
         
+        // Check if this is a project query first
+        if (_queryService != null && IsProjectQuery(userMessage))
+        {
+            await HandleProjectQueryAsync(userMessage);
+            return;
+        }
+        
         // Add user message to conversation history
         _conversationHistory.Add(new wcode.ChatMessage { Role = "user", Content = userMessage });
         
@@ -291,6 +300,166 @@ public partial class TerminalTabControl : UserControl
         else
         {
             AddSystemMessage("Chat cleared. Not connected to Ollama server.");
+        }
+    }
+    
+    private bool IsProjectQuery(string message)
+    {
+        var lowerMessage = message.ToLower();
+        var queryKeywords = new[]
+        {
+            "read file", "show me", "content of", "list files", "what files",
+            "search for", "find files", "project structure", "folder structure",
+            "find function", "where is function", "file info", "details about"
+        };
+        
+        return queryKeywords.Any(keyword => lowerMessage.Contains(keyword));
+    }
+    
+    private async Task HandleProjectQueryAsync(string userMessage)
+    {
+        if (_queryService == null) return;
+        
+        // Show "processing" indicator
+        var processingMessage = new ChatMessage
+        {
+            Sender = "System",
+            Message = "🔍 Processing project query...",
+            Timestamp = DateTime.Now.ToString("HH:mm:ss"),
+            SenderColor = new SolidColorBrush(Color.FromRgb(0, 120, 204)),
+            BackgroundColor = new SolidColorBrush(Color.FromRgb(45, 45, 48))
+        };
+        _messages.Add(processingMessage);
+        ScrollToBottom();
+        
+        try
+        {
+            var result = await _queryService.ProcessQueryAsync(userMessage);
+            
+            // Remove processing message
+            _messages.Remove(processingMessage);
+            
+            // Add query result
+            var resultMessage = new ChatMessage
+            {
+                Sender = result.Success ? "Query Result" : "Query Error",
+                Message = result.Message,
+                Timestamp = DateTime.Now.ToString("HH:mm:ss"),
+                SenderColor = new SolidColorBrush(result.Success ? Color.FromRgb(0, 255, 0) : Color.FromRgb(255, 0, 0)),
+                BackgroundColor = new SolidColorBrush(Color.FromRgb(25, 25, 35))
+            };
+            _messages.Add(resultMessage);
+            
+            // If successful and we have an LLM connection, also send the result to the LLM for analysis
+            if (result.Success && _isConnected && _ollamaClient != null)
+            {
+                var contextMessage = $"User asked: {userMessage}\n\nProject query result:\n{result.Message}\n\nPlease analyze this information and provide a helpful response.";
+                
+                // Add context to conversation history
+                _conversationHistory.Add(new wcode.ChatMessage { Role = "user", Content = contextMessage });
+                
+                // Get LLM response
+                await GetLLMResponseAsync(contextMessage);
+            }
+            
+            // Log the query
+            if (_conversationLogger != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _conversationLogger.LogConversationAsync("Query", userMessage);
+                        await _conversationLogger.LogConversationAsync("QueryResult", result.Message);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to log query: {ex.Message}");
+                    }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _messages.Remove(processingMessage);
+            AddSystemMessage($"❌ Query failed: {ex.Message}");
+        }
+        
+        ScrollToBottom();
+    }
+    
+    private async Task GetLLMResponseAsync(string contextMessage)
+    {
+        if (_ollamaClient == null) return;
+        
+        var startTime = DateTime.Now;
+        
+        var responseMessage = new ChatMessage
+        {
+            Sender = "LLM",
+            Message = "",
+            Timestamp = DateTime.Now.ToString("HH:mm:ss"),
+            SenderColor = new SolidColorBrush(Color.FromRgb(255, 165, 0)),
+            BackgroundColor = new SolidColorBrush(Color.FromRgb(25, 25, 35))
+        };
+        _messages.Add(responseMessage);
+        
+        try
+        {
+            var fullResponse = "";
+            var hasReceivedData = false;
+            
+            await foreach (var chunk in _ollamaClient.ChatStreamAsync(_currentModel, contextMessage, _conversationHistory.Take(_conversationHistory.Count - 1).ToList()))
+            {
+                hasReceivedData = true;
+                fullResponse += chunk;
+                
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    responseMessage.Message = fullResponse;
+                    ScrollToBottom();
+                }, System.Windows.Threading.DispatcherPriority.Normal);
+                
+                await Task.Delay(50);
+            }
+            
+            if (!hasReceivedData)
+            {
+                var regularResponse = await _ollamaClient.ChatAsync(_currentModel, contextMessage, _conversationHistory.Take(_conversationHistory.Count - 1).ToList());
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    responseMessage.Message = regularResponse;
+                    ScrollToBottom();
+                });
+                fullResponse = regularResponse;
+            }
+            
+            if (!string.IsNullOrEmpty(fullResponse))
+            {
+                _conversationHistory.Add(new wcode.ChatMessage { Role = "assistant", Content = fullResponse });
+                
+                // Log LLM response
+                var responseTime = (int)(DateTime.Now - startTime).TotalMilliseconds;
+                if (_conversationLogger != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _conversationLogger.LogConversationAsync("LLM", fullResponse, _currentModel, 0, responseTime);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to log LLM response: {ex.Message}");
+                        }
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _messages.Remove(responseMessage);
+            AddSystemMessage($"❌ Error getting LLM response: {ex.Message}");
         }
     }
 }
