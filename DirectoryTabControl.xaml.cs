@@ -123,19 +123,49 @@ public partial class DirectoryTabControl : UserControl
             }
             else
             {
-                // Check if it's a text file that can be opened
-                if (IsTextFile(item.Path))
-                {
-                    // Notify parent to open the file
-                    FileOpenRequested?.Invoke(item.Path);
-                }
-                else
+                // Check if it's a known binary type that shouldn't be opened
+                if (IsBinaryFile(item.Path))
                 {
                     MessageBox.Show($"File type not supported for viewing: {Path.GetExtension(item.Path)}", 
                                   "Unsupported File Type", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
+                else
+                {
+                    // Open as text file (either known text type or unknown extension)
+                    FileOpenRequested?.Invoke(item.Path);
+                }
             }
         }
+    }
+    
+    private bool IsBinaryFile(string filePath)
+    {
+        var extension = Path.GetExtension(filePath).ToLower();
+        var binaryExtensions = new[]
+        {
+            // Executables and libraries
+            ".exe", ".dll", ".so", ".dylib", ".bin", ".app",
+            
+            // Images
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".ico", ".svg", ".webp",
+            
+            // Audio/Video
+            ".mp3", ".wav", ".flac", ".m4a", ".mp4", ".avi", ".mkv", ".mov", ".wmv",
+            
+            // Archives
+            ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2",
+            
+            // Documents
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            
+            // Databases
+            ".db", ".sqlite", ".mdb",
+            
+            // Other binary formats
+            ".obj", ".o", ".lib", ".a", ".pdb", ".ilk", ".exp"
+        };
+        
+        return binaryExtensions.Contains(extension);
     }
     
     private bool IsTextFile(string filePath)
