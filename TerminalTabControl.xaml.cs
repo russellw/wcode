@@ -355,6 +355,13 @@ public partial class TerminalTabControl : UserControl
             {
                 var contextMessage = $"User asked: {userMessage}\n\nProject query result:\n{result.Message}\n\nPlease analyze this information and provide a helpful response.";
                 
+                // Add system context about project capabilities if this is the first project query
+                if (_conversationHistory.Count == 0 || !_conversationHistory.Any(m => m.Content.Contains("You have access to project files")))
+                {
+                    var systemContext = "You have access to project files and can help users with code analysis, file exploration, and project understanding. The system automatically processes queries about files, folders, and code structure. You can help users understand the results of these queries and provide insights about their codebase.";
+                    _conversationHistory.Add(new wcode.ChatMessage { Role = "system", Content = systemContext });
+                }
+                
                 // Add context to conversation history
                 _conversationHistory.Add(new wcode.ChatMessage { Role = "user", Content = contextMessage });
                 

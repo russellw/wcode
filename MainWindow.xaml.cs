@@ -62,7 +62,7 @@ public partial class MainWindow : Window
     {
         if (_projectConfig != null)
         {
-            this.Title = $"wcode - {_projectConfig.GetProjectDisplayPath()}";
+            this.Title = _projectConfig.GetProjectDisplayPath();
         }
     }
 
