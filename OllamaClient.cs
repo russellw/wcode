@@ -17,7 +17,7 @@ public class OllamaClient : IDisposable
         _baseUrl = $"http://{host}:{port}";
         _httpClient = new HttpClient
         {
-            Timeout = TimeSpan.FromMinutes(5) // Allow longer timeouts for LLM responses
+            Timeout = TimeSpan.FromHours(1) // Allow longer timeouts for CPU inference
         };
     }
 
@@ -138,6 +138,39 @@ public class OllamaClient : IDisposable
 
             var responseJson = await response.Content.ReadAsStringAsync();
             var chatResponse = JsonSerializer.Deserialize<ChatResponse>(responseJson);
+            
+            // Check if tool calls are embedded in content as JSON text
+            if (chatResponse?.Message != null && 
+                (chatResponse.Message.ToolCalls == null || chatResponse.Message.ToolCalls.Count == 0) &&
+                !string.IsNullOrEmpty(chatResponse.Message.Content))
+            {
+                try
+                {
+                    // Try to parse content as a tool call JSON
+                    var toolCallData = JsonSerializer.Deserialize<JsonElement>(chatResponse.Message.Content);
+                    if (toolCallData.TryGetProperty("name", out var nameElement) && 
+                        toolCallData.TryGetProperty("arguments", out var argsElement))
+                    {
+                        // Create a tool call from the content
+                        var toolCall = new ToolCall
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            Type = "function",
+                            Function = new ToolCallFunction
+                            {
+                                Name = nameElement.GetString() ?? string.Empty,
+                                Arguments = argsElement
+                            }
+                        };
+                        
+                        chatResponse.Message.ToolCalls = new List<ToolCall> { toolCall };
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Content is not JSON, leave as is
+                }
+            }
             
             return chatResponse;
         }

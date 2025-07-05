@@ -56,7 +56,7 @@ class OllamaClient:
     def __init__(self, host: str = "192.168.0.63", port: int = 11434):
         self.base_url = f"http://{host}:{port}"
         self.session = requests.Session()
-        self.session.timeout = 300  # 5 minutes for CPU inference
+        self.session.timeout = 3600  # 1 hour for CPU inference
     
     def test_connection(self) -> bool:
         """Test if the Ollama server is reachable."""
