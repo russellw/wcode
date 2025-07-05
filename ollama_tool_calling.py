@@ -56,7 +56,7 @@ class OllamaClient:
     def __init__(self, host: str = "192.168.0.63", port: int = 11434):
         self.base_url = f"http://{host}:{port}"
         self.session = requests.Session()
-        self.session.timeout = 30
+        self.session.timeout = 300  # 5 minutes for CPU inference
     
     def test_connection(self) -> bool:
         """Test if the Ollama server is reachable."""
@@ -189,10 +189,13 @@ def main():
     if response:
         print(f"\n🤖 Model response: {response.get('message', {}).get('content', 'No response')}")
         
-        # Check for tool calls
+        # Check for tool calls in structured format or content
         message = response.get('message', {})
+        tool_calls_found = False
+        
+        # First check for structured tool calls
         if 'tool_calls' in message and message['tool_calls']:
-            print("\n🔧 Tool calls detected:")
+            print("\n🔧 Tool calls detected (structured):")
             for tool_call in message['tool_calls']:
                 func_name = tool_call.get('function', {}).get('name')
                 func_args = tool_call.get('function', {}).get('arguments', {})
@@ -209,7 +212,36 @@ def main():
                         print(f"   - Error: {e}")
                 else:
                     print(f"   - Function not found: {func_name}")
-        else:
+                tool_calls_found = True
+        
+        # Also check if tool call is in content as JSON
+        content = message.get('content', '')
+        if content and not tool_calls_found:
+            try:
+                # Try to parse content as JSON tool call
+                tool_call_data = json.loads(content)
+                if 'name' in tool_call_data and 'arguments' in tool_call_data:
+                    print("\n🔧 Tool call detected (in content):")
+                    func_name = tool_call_data['name']
+                    func_args = tool_call_data['arguments']
+                    
+                    print(f"   - Function: {func_name}")
+                    print(f"   - Arguments: {func_args}")
+                    
+                    function_to_call = available_functions.get(func_name)
+                    if function_to_call:
+                        try:
+                            result = function_to_call(**func_args)
+                            print(f"   - Result: {result}")
+                        except Exception as e:
+                            print(f"   - Error: {e}")
+                    else:
+                        print(f"   - Function not found: {func_name}")
+                    tool_calls_found = True
+            except json.JSONDecodeError:
+                pass
+        
+        if not tool_calls_found:
             print("\n⚠️  No tool calls were made by the model")
             print("    The model may not support tool calling or needs different prompting")
     else:
@@ -230,8 +262,11 @@ def main():
         print(f"\n🤖 Model response: {response.get('message', {}).get('content', 'No response')}")
         
         message = response.get('message', {})
+        tool_calls_found = False
+        
+        # First check for structured tool calls
         if 'tool_calls' in message and message['tool_calls']:
-            print("\n🔧 Tool calls detected:")
+            print("\n🔧 Tool calls detected (structured):")
             for tool_call in message['tool_calls']:
                 func_name = tool_call.get('function', {}).get('name')
                 func_args = tool_call.get('function', {}).get('arguments', {})
@@ -248,7 +283,36 @@ def main():
                         print(f"   - Error: {e}")
                 else:
                     print(f"   - Function not found: {func_name}")
-        else:
+                tool_calls_found = True
+        
+        # Also check if tool call is in content as JSON
+        content = message.get('content', '')
+        if content and not tool_calls_found:
+            try:
+                # Try to parse content as JSON tool call
+                tool_call_data = json.loads(content)
+                if 'name' in tool_call_data and 'arguments' in tool_call_data:
+                    print("\n🔧 Tool call detected (in content):")
+                    func_name = tool_call_data['name']
+                    func_args = tool_call_data['arguments']
+                    
+                    print(f"   - Function: {func_name}")
+                    print(f"   - Arguments: {func_args}")
+                    
+                    function_to_call = available_functions.get(func_name)
+                    if function_to_call:
+                        try:
+                            result = function_to_call(**func_args)
+                            print(f"   - Result: {result}")
+                        except Exception as e:
+                            print(f"   - Error: {e}")
+                    else:
+                        print(f"   - Function not found: {func_name}")
+                    tool_calls_found = True
+            except json.JSONDecodeError:
+                pass
+        
+        if not tool_calls_found:
             print("\n⚠️  No tool calls were made by the model")
     else:
         print("❌ No response received")
