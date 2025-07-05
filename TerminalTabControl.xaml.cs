@@ -344,9 +344,13 @@ public partial class TerminalTabControl : UserControl
     
     private List<Tool>? CreateProjectTools()
     {
-        if (_queryService == null) return null;
+        // Always provide basic tools, even if project query service is unavailable
+        var tools = new List<Tool>();
         
-        return new List<Tool>
+        // Add project tools only if query service is available
+        if (_queryService != null)
+        {
+            tools.AddRange(new List<Tool>
         {
             new Tool
             {
@@ -422,7 +426,27 @@ public partial class TerminalTabControl : UserControl
                     })
                 }
             }
-        };
+            });
+        }
+        
+        // Add a simple diagnostic tool that always works
+        tools.Add(new Tool
+        {
+            Type = "function",
+            Function = new ToolFunction
+            {
+                Name = "get_system_info",
+                Description = "Get information about the current system and available capabilities",
+                Parameters = JsonSerializer.SerializeToElement(new
+                {
+                    type = "object",
+                    properties = new object(),
+                    required = new string[0]
+                })
+            }
+        });
+        
+        return tools.Count > 0 ? tools : null;
     }
     
     private async Task<string> ExecuteToolCall(ToolCall toolCall)
@@ -453,6 +477,14 @@ public partial class TerminalTabControl : UserControl
                 case "get_project_structure":
                     var structureResult = await _queryService.ProcessQueryAsync("project structure");
                     return structureResult.Success ? structureResult.Message : $"Error getting project structure: {structureResult.Message}";
+                    
+                case "get_system_info":
+                    var sysInfo = $"System Information:\n" +
+                                 $"- Tool calling: Available\n" +
+                                 $"- Project query service: {(_queryService != null ? "Available" : "Not available")}\n" +
+                                 $"- Current time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                                 $"- Available tools: {(_queryService != null ? "read_file, list_files, search_files, get_project_structure, get_system_info" : "get_system_info only")}";
+                    return sysInfo;
                     
                 default:
                     return $"Unknown tool function: {functionName}";
