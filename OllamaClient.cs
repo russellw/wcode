@@ -51,7 +51,7 @@ public class OllamaClient : IDisposable
         }
     }
 
-    public async Task<string> ChatAsync(string model, string message, List<ChatMessage>? previousMessages = null)
+    public async Task<string> ChatAsync(string model, string message, List<ChatMessage>? previousMessages = null, List<Tool>? tools = null)
     {
         try
         {
@@ -70,7 +70,8 @@ public class OllamaClient : IDisposable
             {
                 Model = model,
                 Messages = messages,
-                Stream = false
+                Stream = false,
+                Tools = tools
             };
 
             var json = JsonSerializer.Serialize(request);
@@ -102,7 +103,51 @@ public class OllamaClient : IDisposable
         }
     }
 
-    public async IAsyncEnumerable<string> ChatStreamAsync(string model, string message, List<ChatMessage>? previousMessages = null)
+    public async Task<ChatResponse?> ChatWithToolsAsync(string model, string message, List<ChatMessage>? previousMessages = null, List<Tool>? tools = null)
+    {
+        try
+        {
+            var messages = new List<ChatMessage>();
+            
+            // Add previous messages if provided
+            if (previousMessages != null)
+            {
+                messages.AddRange(previousMessages);
+            }
+            
+            // Add current user message
+            messages.Add(new ChatMessage { Role = "user", Content = message });
+
+            var request = new ChatRequest
+            {
+                Model = model,
+                Messages = messages,
+                Stream = false,
+                Tools = tools
+            };
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync($"{_baseUrl}/api/chat", content);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var responseJson = await response.Content.ReadAsStringAsync();
+            var chatResponse = JsonSerializer.Deserialize<ChatResponse>(responseJson);
+            
+            return chatResponse;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    public async IAsyncEnumerable<string> ChatStreamAsync(string model, string message, List<ChatMessage>? previousMessages = null, List<Tool>? tools = null)
     {
         var messages = new List<ChatMessage>();
         
@@ -119,7 +164,8 @@ public class OllamaClient : IDisposable
         {
             Model = model,
             Messages = messages,
-            Stream = true
+            Stream = true,
+            Tools = tools
         };
 
         var json = JsonSerializer.Serialize(request);
@@ -196,6 +242,9 @@ public class ChatMessage
     
     [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
+    
+    [JsonPropertyName("tool_calls")]
+    public List<ToolCall>? ToolCalls { get; set; }
 }
 
 public class ChatRequest
@@ -208,6 +257,9 @@ public class ChatRequest
     
     [JsonPropertyName("stream")]
     public bool Stream { get; set; } = false;
+    
+    [JsonPropertyName("tools")]
+    public List<Tool>? Tools { get; set; }
 }
 
 public class ChatResponse
@@ -244,4 +296,46 @@ public class ModelsResponse
 {
     [JsonPropertyName("models")]
     public List<OllamaModel> Models { get; set; } = new();
+}
+
+public class Tool
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "function";
+    
+    [JsonPropertyName("function")]
+    public ToolFunction Function { get; set; } = new();
+}
+
+public class ToolFunction
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+    
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+    
+    [JsonPropertyName("parameters")]
+    public JsonElement Parameters { get; set; }
+}
+
+public class ToolCall
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+    
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "function";
+    
+    [JsonPropertyName("function")]
+    public ToolCallFunction Function { get; set; } = new();
+}
+
+public class ToolCallFunction
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+    
+    [JsonPropertyName("arguments")]
+    public JsonElement Arguments { get; set; }
 }

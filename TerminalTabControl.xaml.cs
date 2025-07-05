@@ -5,6 +5,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.ComponentModel;
 using System.IO;
+using System.Text.Json;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace wcode;
 
@@ -94,6 +97,13 @@ public partial class TerminalTabControl : UserControl
                 _currentModel = models.First().Name;
                 HeaderText.Text = $"LLM Chat - {_currentModel}";
                 AddSystemMessage($"✅ Connected to Ollama!\nUsing model: {_currentModel}\nAvailable models: {string.Join(", ", models.Select(m => m.Name))}");
+                
+                // Add system context about project capabilities
+                if (_queryService != null)
+                {
+                    var systemContext = "You have access to project files and can help users with code analysis, file exploration, and project understanding. When users ask about project files, the system will automatically provide you with the relevant file contents or project information to analyze and discuss.";
+                    _conversationHistory.Add(new wcode.ChatMessage { Role = "system", Content = systemContext });
+                }
             }
             else
             {
@@ -183,15 +193,11 @@ public partial class TerminalTabControl : UserControl
     {
         if (_ollamaClient == null) return;
         
-        // Check if this is a project query first
-        if (_queryService != null && IsProjectQuery(userMessage))
-        {
-            await HandleProjectQueryAsync(userMessage);
-            return;
-        }
-        
         // Add user message to conversation history
         _conversationHistory.Add(new wcode.ChatMessage { Role = "user", Content = userMessage });
+        
+        // Create project tools if available
+        var tools = CreateProjectTools();
         
         // Show "thinking" indicator
         var thinkingMessage = new ChatMessage
@@ -209,6 +215,9 @@ public partial class TerminalTabControl : UserControl
         {
             var startTime = DateTime.Now;
             
+            // Use tool calling approach
+            var response = await _ollamaClient.ChatWithToolsAsync(_currentModel, userMessage, _conversationHistory.Take(_conversationHistory.Count - 1).ToList(), tools);
+            
             var responseMessage = new ChatMessage
             {
                 Sender = "LLM",
@@ -222,37 +231,51 @@ public partial class TerminalTabControl : UserControl
             _messages.Remove(thinkingMessage);
             _messages.Add(responseMessage);
             
-            // Stream the response
             var fullResponse = "";
-            var hasReceivedData = false;
             
-            await foreach (var chunk in _ollamaClient.ChatStreamAsync(_currentModel, userMessage, _conversationHistory.Take(_conversationHistory.Count - 1).ToList()))
+            if (response?.Message != null)
             {
-                hasReceivedData = true;
-                fullResponse += chunk;
-                
-                // Update on UI thread
-                await Dispatcher.InvokeAsync(() =>
+                // Check if there are tool calls
+                if (response.Message.ToolCalls != null && response.Message.ToolCalls.Any())
                 {
-                    responseMessage.Message = fullResponse;
-                    ScrollToBottom();
-                }, System.Windows.Threading.DispatcherPriority.Normal);
-                
-                // Small delay to make streaming visible
-                await Task.Delay(50);
+                    // Handle tool calls
+                    var toolResults = new List<string>();
+                    
+                    foreach (var toolCall in response.Message.ToolCalls)
+                    {
+                        var toolResult = await ExecuteToolCall(toolCall);
+                        toolResults.Add(toolResult);
+                    }
+                    
+                    // Add tool results to conversation and get final response
+                    _conversationHistory.Add(new wcode.ChatMessage { Role = "assistant", Content = response.Message.Content ?? "", ToolCalls = response.Message.ToolCalls });
+                    
+                    // Add tool results as user messages
+                    for (int i = 0; i < toolResults.Count; i++)
+                    {
+                        _conversationHistory.Add(new wcode.ChatMessage { Role = "user", Content = $"Tool result: {toolResults[i]}" });
+                    }
+                    
+                    // Get final response incorporating tool results
+                    var finalResponse = await _ollamaClient.ChatAsync(_currentModel, "Please provide a helpful response based on the tool results above.", _conversationHistory.Take(_conversationHistory.Count - 1).ToList());
+                    fullResponse = finalResponse;
+                }
+                else
+                {
+                    // No tool calls, just regular response
+                    fullResponse = response.Message.Content ?? "No response received";
+                }
+            }
+            else
+            {
+                fullResponse = "No response received";
             }
             
-            // If no streaming data was received, try regular chat
-            if (!hasReceivedData)
+            await Dispatcher.InvokeAsync(() =>
             {
-                var regularResponse = await _ollamaClient.ChatAsync(_currentModel, userMessage, _conversationHistory.Take(_conversationHistory.Count - 1).ToList());
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    responseMessage.Message = regularResponse;
-                    ScrollToBottom();
-                });
-                fullResponse = regularResponse;
-            }
+                responseMessage.Message = fullResponse;
+                ScrollToBottom();
+            });
             
             // Add assistant response to conversation history
             if (!string.IsNullOrEmpty(fullResponse))
@@ -310,10 +333,135 @@ public partial class TerminalTabControl : UserControl
         {
             "read file", "show me", "content of", "list files", "what files",
             "search for", "find files", "project structure", "folder structure",
-            "find function", "where is function", "file info", "details about"
+            "find function", "where is function", "file info", "details about",
+            "longest file", "largest file", "biggest file", "file size", "how many files",
+            "which file", "what file", "code in", "implementation of", "where is",
+            "open file", "view file", "display file", "analyze file", "examine file"
         };
         
         return queryKeywords.Any(keyword => lowerMessage.Contains(keyword));
+    }
+    
+    private List<Tool>? CreateProjectTools()
+    {
+        if (_queryService == null) return null;
+        
+        return new List<Tool>
+        {
+            new Tool
+            {
+                Type = "function",
+                Function = new ToolFunction
+                {
+                    Name = "read_file",
+                    Description = "Read the contents of a file in the project",
+                    Parameters = JsonSerializer.SerializeToElement(new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            filename = new
+                            {
+                                type = "string",
+                                description = "The name or path of the file to read"
+                            }
+                        },
+                        required = new[] { "filename" }
+                    })
+                }
+            },
+            new Tool
+            {
+                Type = "function",
+                Function = new ToolFunction
+                {
+                    Name = "list_files",
+                    Description = "List all files in the project directory",
+                    Parameters = JsonSerializer.SerializeToElement(new
+                    {
+                        type = "object",
+                        properties = new object(),
+                        required = new string[0]
+                    })
+                }
+            },
+            new Tool
+            {
+                Type = "function",
+                Function = new ToolFunction
+                {
+                    Name = "search_files",
+                    Description = "Search for content within project files",
+                    Parameters = JsonSerializer.SerializeToElement(new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            query = new
+                            {
+                                type = "string",
+                                description = "The text to search for"
+                            }
+                        },
+                        required = new[] { "query" }
+                    })
+                }
+            },
+            new Tool
+            {
+                Type = "function",
+                Function = new ToolFunction
+                {
+                    Name = "get_project_structure",
+                    Description = "Get the overall structure of the project",
+                    Parameters = JsonSerializer.SerializeToElement(new
+                    {
+                        type = "object",
+                        properties = new object(),
+                        required = new string[0]
+                    })
+                }
+            }
+        };
+    }
+    
+    private async Task<string> ExecuteToolCall(ToolCall toolCall)
+    {
+        if (_queryService == null) return "Project query service not available";
+        
+        try
+        {
+            var functionName = toolCall.Function.Name;
+            var arguments = toolCall.Function.Arguments;
+            
+            switch (functionName)
+            {
+                case "read_file":
+                    var filename = arguments.GetProperty("filename").GetString();
+                    var readResult = await _queryService.ProcessQueryAsync($"read file {filename}");
+                    return readResult.Success ? readResult.Message : $"Error reading file: {readResult.Message}";
+                    
+                case "list_files":
+                    var listResult = await _queryService.ProcessQueryAsync("list files");
+                    return listResult.Success ? listResult.Message : $"Error listing files: {listResult.Message}";
+                    
+                case "search_files":
+                    var query = arguments.GetProperty("query").GetString();
+                    var searchResult = await _queryService.ProcessQueryAsync($"search for {query}");
+                    return searchResult.Success ? searchResult.Message : $"Error searching files: {searchResult.Message}";
+                    
+                case "get_project_structure":
+                    var structureResult = await _queryService.ProcessQueryAsync("project structure");
+                    return structureResult.Success ? structureResult.Message : $"Error getting project structure: {structureResult.Message}";
+                    
+                default:
+                    return $"Unknown tool function: {functionName}";
+            }
+        }
+        catch (Exception ex)
+        {
+            return $"Error executing tool call: {ex.Message}";
+        }
     }
     
     private async Task HandleProjectQueryAsync(string userMessage)
@@ -334,6 +482,7 @@ public partial class TerminalTabControl : UserControl
         
         try
         {
+            // Process user query directly
             var result = await _queryService.ProcessQueryAsync(userMessage);
             
             // Remove processing message
@@ -355,12 +504,6 @@ public partial class TerminalTabControl : UserControl
             {
                 var contextMessage = $"User asked: {userMessage}\n\nProject query result:\n{result.Message}\n\nPlease analyze this information and provide a helpful response.";
                 
-                // Add system context about project capabilities if this is the first project query
-                if (_conversationHistory.Count == 0 || !_conversationHistory.Any(m => m.Content.Contains("You have access to project files")))
-                {
-                    var systemContext = "You have access to project files and can help users with code analysis, file exploration, and project understanding. The system automatically processes queries about files, folders, and code structure. You can help users understand the results of these queries and provide insights about their codebase.";
-                    _conversationHistory.Add(new wcode.ChatMessage { Role = "system", Content = systemContext });
-                }
                 
                 // Add context to conversation history
                 _conversationHistory.Add(new wcode.ChatMessage { Role = "user", Content = contextMessage });
