@@ -159,21 +159,7 @@ public partial class TerminalTabControl : UserControl
             BackgroundColor = new SolidColorBrush(Color.FromRgb(30, 30, 30))
         });
 
-        // Log user message
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                if (_conversationLogger != null)
-                {
-                    await _conversationLogger.LogConversationAsync("User", message);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to log user message: {ex.Message}");
-            }
-        });
+        // Note: User message logging moved to SendToOllamaAsync to include tool definitions
 
         MessageInput.Clear();
         
@@ -198,6 +184,38 @@ public partial class TerminalTabControl : UserControl
         
         // Create project tools if available
         var tools = CreateProjectTools();
+        
+        // Log user message with tools
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_conversationLogger != null)
+                {
+                    var userMessageWithTools = new
+                    {
+                        message = userMessage,
+                        tools = tools?.Select(t => new
+                        {
+                            type = t.Type,
+                            function = new
+                            {
+                                name = t.Function.Name,
+                                description = t.Function.Description,
+                                parameters = t.Function.Parameters
+                            }
+                        }).ToArray()
+                    };
+                    
+                    var messageJson = JsonSerializer.Serialize(userMessageWithTools, new JsonSerializerOptions { WriteIndented = true });
+                    await _conversationLogger.LogConversationAsync("User", messageJson);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to log user message: {ex.Message}");
+            }
+        });
         
         // Show "thinking" indicator
         var thinkingMessage = new ChatMessage
@@ -282,7 +300,7 @@ public partial class TerminalTabControl : UserControl
             {
                 _conversationHistory.Add(new wcode.ChatMessage { Role = "assistant", Content = fullResponse });
                 
-                // Log LLM response
+                // Log complete LLM response including tool calls
                 var responseTime = (int)(DateTime.Now - startTime).TotalMilliseconds;
                 _ = Task.Run(async () =>
                 {
@@ -290,7 +308,29 @@ public partial class TerminalTabControl : UserControl
                     {
                         if (_conversationLogger != null)
                         {
-                            await _conversationLogger.LogConversationAsync("LLM", fullResponse, _currentModel, 0, responseTime);
+                            var completeResponse = new
+                            {
+                                message = new
+                                {
+                                    role = "assistant",
+                                    content = response?.Message?.Content ?? "",
+                                    tool_calls = response?.Message?.ToolCalls?.Select(tc => new
+                                    {
+                                        id = tc.Id,
+                                        type = tc.Type,
+                                        function = new
+                                        {
+                                            name = tc.Function.Name,
+                                            arguments = tc.Function.Arguments
+                                        }
+                                    }).ToArray()
+                                },
+                                done = response?.Done ?? true,
+                                final_response = fullResponse
+                            };
+                            
+                            var responseJson = JsonSerializer.Serialize(completeResponse, new JsonSerializerOptions { WriteIndented = true });
+                            await _conversationLogger.LogConversationAsync("Assistant", responseJson, _currentModel, 0, responseTime);
                         }
                     }
                     catch (Exception ex)
@@ -451,32 +491,41 @@ public partial class TerminalTabControl : UserControl
     
     private async Task<string> ExecuteToolCall(ToolCall toolCall)
     {
-        if (_queryService == null) return "Project query service not available";
+        var functionName = toolCall.Function.Name;
+        var arguments = toolCall.Function.Arguments;
+        string result;
         
-        try
+        if (_queryService == null && functionName != "get_system_info")
         {
-            var functionName = toolCall.Function.Name;
-            var arguments = toolCall.Function.Arguments;
-            
-            switch (functionName)
+            result = "Project query service not available";
+        }
+        else
+        {
+            try
+            {
+                switch (functionName)
             {
                 case "read_file":
                     var filename = arguments.GetProperty("filename").GetString();
                     var readResult = await _queryService.ProcessQueryAsync($"read file {filename}");
-                    return readResult.Success ? readResult.Message : $"Error reading file: {readResult.Message}";
+                    result = readResult.Success ? readResult.Message : $"Error reading file: {readResult.Message}";
+                    break;
                     
                 case "list_files":
                     var listResult = await _queryService.ProcessQueryAsync("list files");
-                    return listResult.Success ? listResult.Message : $"Error listing files: {listResult.Message}";
+                    result = listResult.Success ? listResult.Message : $"Error listing files: {listResult.Message}";
+                    break;
                     
                 case "search_files":
                     var query = arguments.GetProperty("query").GetString();
                     var searchResult = await _queryService.ProcessQueryAsync($"search for {query}");
-                    return searchResult.Success ? searchResult.Message : $"Error searching files: {searchResult.Message}";
+                    result = searchResult.Success ? searchResult.Message : $"Error searching files: {searchResult.Message}";
+                    break;
                     
                 case "get_project_structure":
                     var structureResult = await _queryService.ProcessQueryAsync("project structure");
-                    return structureResult.Success ? structureResult.Message : $"Error getting project structure: {structureResult.Message}";
+                    result = structureResult.Success ? structureResult.Message : $"Error getting project structure: {structureResult.Message}";
+                    break;
                     
                 case "get_system_info":
                     var sysInfo = $"System Information:\n" +
@@ -484,16 +533,53 @@ public partial class TerminalTabControl : UserControl
                                  $"- Project query service: {(_queryService != null ? "Available" : "Not available")}\n" +
                                  $"- Current time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
                                  $"- Available tools: {(_queryService != null ? "read_file, list_files, search_files, get_project_structure, get_system_info" : "get_system_info only")}";
-                    return sysInfo;
+                    result = sysInfo;
+                    break;
                     
                 default:
-                    return $"Unknown tool function: {functionName}";
+                    result = $"Unknown tool function: {functionName}";
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                result = $"Error executing tool call: {ex.Message}";
             }
         }
-        catch (Exception ex)
+        
+        // Log the tool execution
+        _ = Task.Run(async () =>
         {
-            return $"Error executing tool call: {ex.Message}";
-        }
+            try
+            {
+                if (_conversationLogger != null)
+                {
+                    var toolExecution = new
+                    {
+                        tool_call = new
+                        {
+                            id = toolCall.Id,
+                            type = toolCall.Type,
+                            function = new
+                            {
+                                name = functionName,
+                                arguments = arguments
+                            }
+                        },
+                        result = result
+                    };
+                    
+                    var toolJson = JsonSerializer.Serialize(toolExecution, new JsonSerializerOptions { WriteIndented = true });
+                    await _conversationLogger.LogConversationAsync("Tool", toolJson);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to log tool execution: {ex.Message}");
+            }
+        });
+        
+        return result;
     }
     
     private async Task HandleProjectQueryAsync(string userMessage)
