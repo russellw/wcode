@@ -5,7 +5,9 @@
       "Bash(git commit:*)",
       "Bash(dotnet build)",
       "Bash(chmod:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }
