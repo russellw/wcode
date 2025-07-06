@@ -11,6 +11,8 @@ import requests
 import json
 import time
 from typing import Dict, Any, Optional, Union
+from datetime import datetime
+import uuid
 
 
 def calculate(operation: str, a: float, b: float) -> float:
@@ -52,11 +54,51 @@ def get_weather(location: str) -> str:
     return f"The weather in {location} is sunny with a temperature of 22°C"
 
 
+class ConversationLogger:
+    def __init__(self, log_file: str = "ollama_tool_calling_log.json"):
+        self.log_file = log_file
+        self.session_id = self._generate_session_id()
+        self.conversation_log = {"conversations": []}
+    
+    def _generate_session_id(self) -> str:
+        """Generate a unique session ID"""
+        date_component = datetime.now().strftime("%Y%m%d")
+        random_component = str(uuid.uuid4())[:8]
+        return f"{date_component}-{random_component}"
+    
+    def log_message(self, sender: str, message: str, model: str = "", tokens_used: int = 0, response_time_ms: int = 0):
+        """Log a conversation message"""
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "sessionId": self.session_id,
+            "sender": sender,
+            "message": message,
+            "model": model,
+            "tokensUsed": tokens_used,
+            "responseTimeMs": response_time_ms
+        }
+        
+        self.conversation_log["conversations"].append(entry)
+        
+        # Write to file (overwrite mode)
+        try:
+            with open(self.log_file, 'w', encoding='utf-8') as f:
+                json.dump(self.conversation_log, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Warning: Failed to write to log file: {e}")
+    
+    def log_tool_call(self, tool_name: str, arguments: dict, result: Any):
+        """Log a tool call and its result"""
+        tool_message = f"Tool Call: {tool_name}\nArguments: {json.dumps(arguments, indent=2)}\nResult: {result}"
+        self.log_message("Tool", tool_message)
+
+
 class OllamaClient:
-    def __init__(self, host: str = "192.168.0.63", port: int = 11434):
+    def __init__(self, host: str = "192.168.0.63", port: int = 11434, logger: Optional[ConversationLogger] = None):
         self.base_url = f"http://{host}:{port}"
         self.session = requests.Session()
         self.session.timeout = 3600  # 1 hour for CPU inference
+        self.logger = logger
     
     def test_connection(self) -> bool:
         """Test if the Ollama server is reachable."""
@@ -78,6 +120,8 @@ class OllamaClient:
     
     def chat_with_tools(self, model: str, message: str, tools: list) -> Optional[Dict[str, Any]]:
         """Chat with tool calling support."""
+        start_time = time.time()
+        
         # Convert functions to tool definitions
         tool_definitions = []
         for tool in tools:
@@ -113,6 +157,14 @@ class OllamaClient:
             "stream": False
         }
         
+        # Log the complete user request including tools
+        if self.logger:
+            user_message_with_tools = {
+                "message": message,
+                "tools": tool_definitions
+            }
+            self.logger.log_message("User", json.dumps(user_message_with_tools, indent=2), model)
+        
         try:
             response = self.session.post(
                 f"{self.base_url}/api/chat",
@@ -120,15 +172,45 @@ class OllamaClient:
                 headers={"Content-Type": "application/json"}
             )
             
+            response_time_ms = int((time.time() - start_time) * 1000)
+            
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                
+                # Log the complete assistant response
+                if self.logger:
+                    # Log the full response structure, not just content
+                    response_data = {
+                        "message": result.get('message', {}),
+                        "done": result.get('done', False),
+                        "total_duration": result.get('total_duration'),
+                        "load_duration": result.get('load_duration'),
+                        "prompt_eval_count": result.get('prompt_eval_count'),
+                        "prompt_eval_duration": result.get('prompt_eval_duration'),
+                        "eval_count": result.get('eval_count'),
+                        "eval_duration": result.get('eval_duration')
+                    }
+                    # Remove None values
+                    response_data = {k: v for k, v in response_data.items() if v is not None}
+                    
+                    self.logger.log_message("Assistant", json.dumps(response_data, indent=2), model, 
+                                          result.get('prompt_eval_count', 0) + result.get('eval_count', 0), 
+                                          response_time_ms)
+                
+                return result
             else:
-                print(f"❌ Chat failed with status {response.status_code}")
-                print(f"   Response: {response.text}")
+                error_msg = f"❌ Chat failed with status {response.status_code}: {response.text}"
+                print(error_msg)
+                if self.logger:
+                    self.logger.log_message("System", error_msg, model, 0, response_time_ms)
                 return None
                 
         except requests.exceptions.RequestException as e:
-            print(f"❌ Chat request failed: {e}")
+            response_time_ms = int((time.time() - start_time) * 1000)
+            error_msg = f"❌ Chat request failed: {e}"
+            print(error_msg)
+            if self.logger:
+                self.logger.log_message("System", error_msg, model, 0, response_time_ms)
             return None
     
     def _get_json_type(self, python_type) -> str:
@@ -157,8 +239,13 @@ def main():
     print("🦙 Ollama Tool Calling Demo (LAN)")
     print("=" * 40)
     
-    # Initialize client
-    client = OllamaClient()
+    # Initialize logger
+    logger = ConversationLogger("ollama_tool_calling_log.json")
+    print(f"📝 Logging to: {logger.log_file}")
+    print(f"🔧 Session ID: {logger.session_id}")
+    
+    # Initialize client with logger
+    client = OllamaClient(logger=logger)
     
     # Test connection
     if not client.test_connection():
@@ -208,10 +295,16 @@ def main():
                     try:
                         result = function_to_call(**func_args)
                         print(f"   - Result: {result}")
+                        # Log the tool call
+                        logger.log_tool_call(func_name, func_args, result)
                     except Exception as e:
-                        print(f"   - Error: {e}")
+                        error_msg = f"Error: {e}"
+                        print(f"   - {error_msg}")
+                        logger.log_tool_call(func_name, func_args, error_msg)
                 else:
-                    print(f"   - Function not found: {func_name}")
+                    error_msg = f"Function not found: {func_name}"
+                    print(f"   - {error_msg}")
+                    logger.log_tool_call(func_name, func_args, error_msg)
                 tool_calls_found = True
         
         # Also check if tool call is in content as JSON
@@ -279,10 +372,16 @@ def main():
                     try:
                         result = function_to_call(**func_args)
                         print(f"   - Result: {result}")
+                        # Log the tool call
+                        logger.log_tool_call(func_name, func_args, result)
                     except Exception as e:
-                        print(f"   - Error: {e}")
+                        error_msg = f"Error: {e}"
+                        print(f"   - {error_msg}")
+                        logger.log_tool_call(func_name, func_args, error_msg)
                 else:
-                    print(f"   - Function not found: {func_name}")
+                    error_msg = f"Function not found: {func_name}"
+                    print(f"   - {error_msg}")
+                    logger.log_tool_call(func_name, func_args, error_msg)
                 tool_calls_found = True
         
         # Also check if tool call is in content as JSON

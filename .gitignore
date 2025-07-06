@@ -57,3 +57,4 @@ nunit-*.xml
 llm_conversations.md
 llm_conversations.json
 llm_conversations.db
+ollama_tool_calling_log.json
