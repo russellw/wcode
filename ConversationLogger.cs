@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Globalization;
 
 namespace wcode;
 
@@ -8,13 +9,13 @@ public class ConversationLogger
 {
     private readonly string _projectPath;
     private readonly string _markdownLogPath;
-    private readonly string _jsonLogPath;
+    private readonly string _csvLogPath;
 
     public ConversationLogger(string projectPath)
     {
         _projectPath = projectPath;
         _markdownLogPath = Path.Combine(projectPath, "llm_conversations.md");
-        _jsonLogPath = Path.Combine(projectPath, "llm_conversations.json");
+        _csvLogPath = Path.Combine(projectPath, "llm_conversations.csv");
         
         InitializeLogs();
     }
@@ -27,14 +28,12 @@ public class ConversationLogger
             File.WriteAllText(_markdownLogPath, "# LLM Conversations\n\n");
         }
 
-        // Initialize JSON log if it doesn't exist
-        if (!File.Exists(_jsonLogPath))
+        // Initialize CSV log if it doesn't exist
+        if (!File.Exists(_csvLogPath))
         {
-            var emptyLog = new List<ConversationEntry>();
-            var json = JsonSerializer.Serialize(emptyLog, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_jsonLogPath, json);
+            var csvHeader = "timestamp,sessionId,sender,message,model,tokensUsed,responseTimeMs\n";
+            File.WriteAllText(_csvLogPath, csvHeader);
         }
-
     }
 
 
@@ -46,8 +45,8 @@ public class ConversationLogger
         // Log to markdown (casual reading)
         await LogToMarkdownAsync(sender, message, timestamp);
         
-        // Log to JSON (structured but human-readable)
-        await LogToJsonAsync(sender, message, timestamp, sessionId, model, tokensUsed, responseTimeMs);
+        // Log to CSV (efficient structured format)
+        await LogToCsvAsync(sender, message, timestamp, sessionId, model, tokensUsed, responseTimeMs);
     }
 
     private async Task LogToMarkdownAsync(string sender, string message, DateTime timestamp)
@@ -64,33 +63,39 @@ public class ConversationLogger
         await File.AppendAllTextAsync(_markdownLogPath, markdownEntry);
     }
 
-    private async Task LogToJsonAsync(string sender, string message, DateTime timestamp, string sessionId, string model, int tokensUsed, int responseTimeMs)
+    private async Task LogToCsvAsync(string sender, string message, DateTime timestamp, string sessionId, string model, int tokensUsed, int responseTimeMs)
     {
-        List<ConversationEntry> log;
-        
         try
         {
-            var existingJson = await File.ReadAllTextAsync(_jsonLogPath);
-            log = JsonSerializer.Deserialize<List<ConversationEntry>>(existingJson) ?? new List<ConversationEntry>();
+            // Escape CSV special characters and newlines
+            var escapedMessage = EscapeCsvValue(message);
+            var escapedSender = EscapeCsvValue(sender);
+            var escapedModel = EscapeCsvValue(model);
+            var escapedSessionId = EscapeCsvValue(sessionId);
+            
+            var csvLine = $"{timestamp:yyyy-MM-ddTHH:mm:ss.fffK},{escapedSessionId},{escapedSender},{escapedMessage},{escapedModel},{tokensUsed},{responseTimeMs}\n";
+            
+            await File.AppendAllTextAsync(_csvLogPath, csvLine);
         }
-        catch
+        catch (Exception ex)
         {
-            log = new List<ConversationEntry>();
+            // Fallback logging if CSV fails
+            System.Diagnostics.Debug.WriteLine($"CSV logging failed: {ex.Message}");
         }
-
-        log.Add(new ConversationEntry
+    }
+    
+    private static string EscapeCsvValue(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return "";
+            
+        // If the value contains comma, newline, or quote, wrap in quotes and escape internal quotes
+        if (value.Contains(',') || value.Contains('\n') || value.Contains('\r') || value.Contains('"'))
         {
-            Timestamp = timestamp,
-            SessionId = sessionId,
-            Sender = sender,
-            Message = message,
-            Model = model,
-            TokensUsed = tokensUsed,
-            ResponseTimeMs = responseTimeMs
-        });
-
-        var updatedJson = JsonSerializer.Serialize(log, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(_jsonLogPath, updatedJson);
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+        
+        return value;
     }
 
 

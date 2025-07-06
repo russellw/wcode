@@ -10,6 +10,7 @@ the model to use it.
 import requests
 import json
 import time
+import csv
 from typing import Dict, Any, Optional, Union
 from datetime import datetime
 import uuid
@@ -55,10 +56,10 @@ def get_weather(location: str) -> str:
 
 
 class ConversationLogger:
-    def __init__(self, log_file: str = "ollama_tool_calling_log.json"):
+    def __init__(self, log_file: str = "ollama_tool_calling_log.csv"):
         self.log_file = log_file
         self.session_id = self._generate_session_id()
-        self.conversation_log = []
+        self._initialize_csv()
     
     def _generate_session_id(self) -> str:
         """Generate a unique session ID"""
@@ -66,30 +67,37 @@ class ConversationLogger:
         random_component = str(uuid.uuid4())[:8]
         return f"{date_component}-{random_component}"
     
+    def _initialize_csv(self):
+        """Initialize CSV file with headers if it doesn't exist"""
+        import os
+        if not os.path.exists(self.log_file):
+            try:
+                with open(self.log_file, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['timestamp', 'sessionId', 'sender', 'message', 'model', 'tokensUsed', 'responseTimeMs'])
+            except Exception as e:
+                print(f"Warning: Failed to initialize CSV log file: {e}")
+    
     def log_message(self, sender: str, message: str, model: str = "", tokens_used: int = 0, response_time_ms: int = 0):
         """Log a conversation message"""
-        entry = {
-            "timestamp": datetime.now().isoformat(),
-            "sessionId": self.session_id,
-            "sender": sender,
-            "message": message,
-            "model": model,
-            "tokensUsed": tokens_used,
-            "responseTimeMs": response_time_ms
-        }
-        
-        self.conversation_log.append(entry)
-        
-        # Write to file (overwrite mode)
         try:
-            with open(self.log_file, 'w', encoding='utf-8') as f:
-                json.dump(self.conversation_log, f, indent=2, ensure_ascii=False)
+            with open(self.log_file, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    datetime.now().isoformat(),
+                    self.session_id,
+                    sender,
+                    message.replace('\n', '\\n').replace('\r', '\\r'),  # Escape newlines for CSV
+                    model,
+                    tokens_used,
+                    response_time_ms
+                ])
         except Exception as e:
             print(f"Warning: Failed to write to log file: {e}")
     
     def log_tool_call(self, tool_name: str, arguments: dict, result: Any):
         """Log a tool call and its result"""
-        tool_message = f"Tool Call: {tool_name}\nArguments: {json.dumps(arguments, indent=2)}\nResult: {result}"
+        tool_message = f"Tool Call: {tool_name}\\nArguments: {json.dumps(arguments)}\\nResult: {result}"
         self.log_message("Tool", tool_message)
 
 
@@ -240,7 +248,7 @@ def main():
     print("=" * 40)
     
     # Initialize logger
-    logger = ConversationLogger("ollama_tool_calling_log.json")
+    logger = ConversationLogger("ollama_tool_calling_log.csv")
     print(f"📝 Logging to: {logger.log_file}")
     print(f"🔧 Session ID: {logger.session_id}")
     

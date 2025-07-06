@@ -55,7 +55,7 @@ nunit-*.xml
 
 # LLM conversation logs (development debugging)
 llm_conversations.md
-llm_conversations.json
-ollama_tool_calling_log.json
+llm_conversations.csv
+ollama_tool_calling_log.csv
 ollama_debug_request.json
 ollama_debug_tools.txt
