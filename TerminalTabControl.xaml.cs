@@ -545,24 +545,24 @@ public partial class TerminalTabControl : UserControl
             {
                 case "read_file":
                     var filename = arguments.GetProperty("filename").GetString();
-                    var readResult = await _queryService.ProcessQueryAsync($"read file {filename}");
-                    result = readResult.Success ? readResult.Message : $"Error reading file: {readResult.Message}";
+                    var readResult = await _queryService!.ProcessQueryAsync($"read file {filename}");
+                    result = readResult is { Success: true } ? readResult.Message : $"Error reading file: {readResult?.Message ?? "Unknown error"}";
                     break;
                     
                 case "list_files":
-                    var listResult = await _queryService.ProcessQueryAsync("list files");
-                    result = listResult.Success ? listResult.Message : $"Error listing files: {listResult.Message}";
+                    var listResult = await _queryService!.ProcessQueryAsync("list files");
+                    result = listResult is { Success: true } ? listResult.Message : $"Error listing files: {listResult?.Message ?? "Unknown error"}";
                     break;
                     
                 case "search_files":
                     var query = arguments.GetProperty("query").GetString();
-                    var searchResult = await _queryService.ProcessQueryAsync($"search for {query}");
-                    result = searchResult.Success ? searchResult.Message : $"Error searching files: {searchResult.Message}";
+                    var searchResult = await _queryService!.ProcessQueryAsync($"search for {query}");
+                    result = searchResult is { Success: true } ? searchResult.Message : $"Error searching files: {searchResult?.Message ?? "Unknown error"}";
                     break;
                     
                 case "get_project_structure":
-                    var structureResult = await _queryService.ProcessQueryAsync("project structure");
-                    result = structureResult.Success ? structureResult.Message : $"Error getting project structure: {structureResult.Message}";
+                    var structureResult = await _queryService!.ProcessQueryAsync("project structure");
+                    result = structureResult is { Success: true } ? structureResult.Message : $"Error getting project structure: {structureResult?.Message ?? "Unknown error"}";
                     break;
                     
                 case "get_system_info":
