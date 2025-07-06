@@ -50,11 +50,14 @@ public partial class MainWindow : Window
     {
         // Open terminal tab first
         OpenTerminalTab();
+        var terminalTab = FileTabControl.SelectedItem; // Remember the terminal tab
         
         // Open directory tab for current project if available
         if (!string.IsNullOrEmpty(_currentFolderPath) && Directory.Exists(_currentFolderPath))
         {
             OpenDirectoryTab(_currentFolderPath);
+            // Restore focus to terminal tab
+            FileTabControl.SelectedItem = terminalTab;
         }
     }
 
