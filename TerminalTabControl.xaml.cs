@@ -185,6 +185,33 @@ public partial class TerminalTabControl : UserControl
         // Create project tools if available
         var tools = CreateProjectTools();
         
+        // Debug: Log tool creation
+        var debugInfo = $"Created {tools?.Count ?? 0} tools for user message: {userMessage}";
+        System.Diagnostics.Debug.WriteLine(debugInfo);
+        
+        if (tools != null)
+        {
+            foreach (var tool in tools)
+            {
+                var toolInfo = $"Tool: {tool.Function.Name} - {tool.Function.Description}";
+                System.Diagnostics.Debug.WriteLine(toolInfo);
+                debugInfo += $"\n{toolInfo}";
+            }
+        }
+        
+        // Write debug info to file
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await File.WriteAllTextAsync("ollama_debug_tools.txt", debugInfo);
+            }
+            catch
+            {
+                // Ignore file write errors
+            }
+        });
+        
         // Log user message with tools
         _ = Task.Run(async () =>
         {
@@ -274,9 +301,20 @@ public partial class TerminalTabControl : UserControl
                         _conversationHistory.Add(new wcode.ChatMessage { Role = "user", Content = $"Tool result: {toolResults[i]}" });
                     }
                     
-                    // Get final response incorporating tool results
-                    var finalResponse = await _ollamaClient.ChatAsync(_currentModel, "Please provide a helpful response based on the tool results above.", _conversationHistory.Take(_conversationHistory.Count - 1).ToList());
-                    fullResponse = finalResponse;
+                    // Directly use tool results as the response since tools executed successfully
+                    if (toolResults.Count == 1)
+                    {
+                        fullResponse = $"Tool '{response.Message.ToolCalls[0].Function.Name}' executed successfully:\n\n{toolResults[0]}";
+                    }
+                    else
+                    {
+                        var resultText = "";
+                        for (int i = 0; i < toolResults.Count; i++)
+                        {
+                            resultText += $"Tool '{response.Message.ToolCalls[i].Function.Name}' result:\n{toolResults[i]}\n\n";
+                        }
+                        fullResponse = resultText.TrimEnd();
+                    }
                 }
                 else
                 {

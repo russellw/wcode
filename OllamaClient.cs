@@ -126,7 +126,21 @@ public class OllamaClient : IDisposable
                 Tools = tools
             };
 
-            var json = JsonSerializer.Serialize(request);
+            var json = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true });
+            
+            // Debug: Log the actual JSON being sent to Ollama
+            System.Diagnostics.Debug.WriteLine($"Sending to Ollama: {json}");
+            
+            // Also write to debug file for analysis
+            try
+            {
+                await File.WriteAllTextAsync("ollama_debug_request.json", json);
+            }
+            catch
+            {
+                // Ignore file write errors
+            }
+            
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync($"{_baseUrl}/api/chat", content);
