@@ -58,7 +58,7 @@ class ConversationLogger:
     def __init__(self, log_file: str = "ollama_tool_calling_log.json"):
         self.log_file = log_file
         self.session_id = self._generate_session_id()
-        self.conversation_log = {"conversations": []}
+        self.conversation_log = []
     
     def _generate_session_id(self) -> str:
         """Generate a unique session ID"""
@@ -78,7 +78,7 @@ class ConversationLogger:
             "responseTimeMs": response_time_ms
         }
         
-        self.conversation_log["conversations"].append(entry)
+        self.conversation_log.append(entry)
         
         # Write to file (overwrite mode)
         try:

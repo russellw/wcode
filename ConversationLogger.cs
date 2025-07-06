@@ -30,7 +30,7 @@ public class ConversationLogger
         // Initialize JSON log if it doesn't exist
         if (!File.Exists(_jsonLogPath))
         {
-            var emptyLog = new ConversationLog { Conversations = new List<ConversationEntry>() };
+            var emptyLog = new List<ConversationEntry>();
             var json = JsonSerializer.Serialize(emptyLog, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_jsonLogPath, json);
         }
@@ -66,19 +66,19 @@ public class ConversationLogger
 
     private async Task LogToJsonAsync(string sender, string message, DateTime timestamp, string sessionId, string model, int tokensUsed, int responseTimeMs)
     {
-        ConversationLog log;
+        List<ConversationEntry> log;
         
         try
         {
             var existingJson = await File.ReadAllTextAsync(_jsonLogPath);
-            log = JsonSerializer.Deserialize<ConversationLog>(existingJson) ?? new ConversationLog();
+            log = JsonSerializer.Deserialize<List<ConversationEntry>>(existingJson) ?? new List<ConversationEntry>();
         }
         catch
         {
-            log = new ConversationLog();
+            log = new List<ConversationEntry>();
         }
 
-        log.Conversations.Add(new ConversationEntry
+        log.Add(new ConversationEntry
         {
             Timestamp = timestamp,
             SessionId = sessionId,
@@ -100,12 +100,6 @@ public class ConversationLogger
         var dateComponent = DateTime.Now.ToString("yyyyMMdd");
         var randomComponent = Guid.NewGuid().ToString()[..8];
         return $"{dateComponent}-{randomComponent}";
-    }
-
-    public class ConversationLog
-    {
-        [JsonPropertyName("conversations")]
-        public List<ConversationEntry> Conversations { get; set; } = new();
     }
 
     public class ConversationEntry
