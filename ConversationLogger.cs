@@ -1,7 +1,6 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Data.SQLite;
 
 namespace wcode;
 
@@ -10,14 +9,12 @@ public class ConversationLogger
     private readonly string _projectPath;
     private readonly string _markdownLogPath;
     private readonly string _jsonLogPath;
-    private readonly string _sqliteLogPath;
 
     public ConversationLogger(string projectPath)
     {
         _projectPath = projectPath;
         _markdownLogPath = Path.Combine(projectPath, "llm_conversations.md");
         _jsonLogPath = Path.Combine(projectPath, "llm_conversations.json");
-        _sqliteLogPath = Path.Combine(projectPath, "llm_conversations.db");
         
         InitializeLogs();
     }
@@ -38,38 +35,8 @@ public class ConversationLogger
             File.WriteAllText(_jsonLogPath, json);
         }
 
-        // Initialize SQLite database if it doesn't exist
-        if (!File.Exists(_sqliteLogPath))
-        {
-            InitializeSQLiteDatabase();
-        }
     }
 
-    private void InitializeSQLiteDatabase()
-    {
-        using var connection = new SQLiteConnection($"Data Source={_sqliteLogPath}");
-        connection.Open();
-        
-        var createTableCommand = @"
-            CREATE TABLE IF NOT EXISTS conversations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT NOT NULL,
-                session_id TEXT NOT NULL,
-                sender TEXT NOT NULL,
-                message TEXT NOT NULL,
-                model TEXT,
-                tokens_used INTEGER,
-                response_time_ms INTEGER
-            );
-            
-            CREATE INDEX IF NOT EXISTS idx_timestamp ON conversations(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_session ON conversations(session_id);
-            CREATE INDEX IF NOT EXISTS idx_sender ON conversations(sender);
-        ";
-        
-        using var command = new SQLiteCommand(createTableCommand, connection);
-        command.ExecuteNonQuery();
-    }
 
     public async Task LogConversationAsync(string sender, string message, string model = "", int tokensUsed = 0, int responseTimeMs = 0)
     {
@@ -81,9 +48,6 @@ public class ConversationLogger
         
         // Log to JSON (structured but human-readable)
         await LogToJsonAsync(sender, message, timestamp, sessionId, model, tokensUsed, responseTimeMs);
-        
-        // Log to SQLite (programmatic access)
-        await LogToSQLiteAsync(sender, message, timestamp, sessionId, model, tokensUsed, responseTimeMs);
     }
 
     private async Task LogToMarkdownAsync(string sender, string message, DateTime timestamp)
@@ -129,27 +93,6 @@ public class ConversationLogger
         await File.WriteAllTextAsync(_jsonLogPath, updatedJson);
     }
 
-    private async Task LogToSQLiteAsync(string sender, string message, DateTime timestamp, string sessionId, string model, int tokensUsed, int responseTimeMs)
-    {
-        using var connection = new SQLiteConnection($"Data Source={_sqliteLogPath}");
-        await connection.OpenAsync();
-        
-        var insertCommand = @"
-            INSERT INTO conversations (timestamp, session_id, sender, message, model, tokens_used, response_time_ms)
-            VALUES (@timestamp, @sessionId, @sender, @message, @model, @tokensUsed, @responseTimeMs)
-        ";
-        
-        using var command = new SQLiteCommand(insertCommand, connection);
-        command.Parameters.AddWithValue("@timestamp", timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-        command.Parameters.AddWithValue("@sessionId", sessionId);
-        command.Parameters.AddWithValue("@sender", sender);
-        command.Parameters.AddWithValue("@message", message);
-        command.Parameters.AddWithValue("@model", model ?? "");
-        command.Parameters.AddWithValue("@tokensUsed", tokensUsed);
-        command.Parameters.AddWithValue("@responseTimeMs", responseTimeMs);
-        
-        await command.ExecuteNonQueryAsync();
-    }
 
     private string GetCurrentSessionId()
     {
