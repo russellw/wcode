@@ -135,7 +135,7 @@ class Program
         var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
 
         // Assert
-        Assert.Contains("No matches found", result);
+        Assert.Contains("No results found.", result);
     }
 
     [Fact]
@@ -224,7 +224,7 @@ class Program
         };
     }
 
-    public void Dispose()
+    private void Dispose()
     {
         // Clean up test directory
         if (Directory.Exists(_testProjectPath))
