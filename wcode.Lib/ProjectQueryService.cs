@@ -104,6 +104,12 @@ public class ProjectQueryService
 
         var fullPath = Path.IsPathRooted(filePath) ? filePath : Path.Combine(_projectPath, filePath);
         
+        // Security: Validate path is within project directory
+        if (!IsPathWithinProject(fullPath))
+        {
+            return new QueryResult { Success = false, Message = $"Access denied: Path is outside project directory: {filePath}" };
+        }
+        
         if (!File.Exists(fullPath))
         {
             return new QueryResult { Success = false, Message = $"File not found: {filePath}" };
@@ -140,6 +146,12 @@ public class ProjectQueryService
         try
         {
             var fullPath = Path.IsPathRooted(filePath) ? filePath : Path.Combine(_projectPath, filePath);
+            
+            // Security: Validate path is within project directory
+            if (!IsPathWithinProject(fullPath))
+            {
+                return new QueryResult { Success = false, Message = $"Access denied: Path is outside project directory: {filePath}" };
+            }
             
             // Ensure the directory exists
             var directory = Path.GetDirectoryName(fullPath);
@@ -517,6 +529,18 @@ public class ProjectQueryService
             return matches[0].Groups[1].Value;
         }
         
+        // Look for "read file <path>" or "write file <path>" patterns
+        var commandMatch = System.Text.RegularExpressions.Regex.Match(query, @"(?:read|write) file\s+(.+?)(?:\s+content:|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (commandMatch.Success)
+        {
+            var path = commandMatch.Groups[1].Value.Trim();
+            // Don't return empty paths or paths that are just "content:"
+            if (!string.IsNullOrEmpty(path) && !path.StartsWith("content:", StringComparison.OrdinalIgnoreCase))
+            {
+                return path;
+            }
+        }
+        
         // Look for file extensions
         var fileMatch = System.Text.RegularExpressions.Regex.Match(query, @"(\w+\.\w+)");
         if (fileMatch.Success)
@@ -572,6 +596,33 @@ public class ProjectQueryService
         }
         
         return "";
+    }
+    
+    private bool IsPathWithinProject(string fullPath)
+    {
+        try
+        {
+            // Normalize path separators to prevent bypass with mixed separators
+            var normalizedPath = fullPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+            
+            // Get absolute paths and normalize them
+            var projectRoot = Path.GetFullPath(_projectPath);
+            var targetPath = Path.GetFullPath(normalizedPath);
+            
+            // Ensure both paths end with directory separator for proper comparison
+            if (!projectRoot.EndsWith(Path.DirectorySeparatorChar))
+            {
+                projectRoot += Path.DirectorySeparatorChar;
+            }
+            
+            // Check if the target path starts with the project root
+            return targetPath.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            // If path resolution fails, deny access
+            return false;
+        }
     }
 
     private string ExtractFunctionName(string query)

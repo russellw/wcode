@@ -235,6 +235,87 @@ class Program
     }
 
     [Fact]
+    public async Task ReadFile_PathTraversalAttack_ReturnsAccessDenied()
+    {
+        // Arrange - try to read outside project directory
+        var toolCall = CreateToolCall("read_file", new { filename = "../../../etc/passwd" });
+
+        // Act
+        var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
+
+        // Assert
+        Assert.Contains("Access denied", result);
+        Assert.Contains("outside project directory", result);
+    }
+
+    [Fact]
+    public async Task ReadFile_AbsolutePathOutsideProject_ReturnsAccessDenied()
+    {
+        // Arrange - try to read absolute path outside project
+        var outsidePath = Path.Combine(Path.GetTempPath(), "malicious.txt");
+        var toolCall = CreateToolCall("read_file", new { filename = outsidePath });
+
+        // Act
+        var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
+
+        // Assert
+        Assert.Contains("Access denied", result);
+        Assert.Contains("outside project directory", result);
+    }
+
+    [Fact]
+    public async Task WriteFile_PathTraversalAttack_ReturnsAccessDenied()
+    {
+        // Arrange - try to write outside project directory
+        var toolCall = CreateToolCall("write_file", new { 
+            filename = "../../../tmp/malicious.txt", 
+            content = "malicious content" 
+        });
+
+        // Act
+        var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
+
+        // Assert
+        Assert.Contains("Access denied", result);
+        Assert.Contains("outside project directory", result);
+    }
+
+    [Fact]
+    public async Task WriteFile_AbsolutePathOutsideProject_ReturnsAccessDenied()
+    {
+        // Arrange - try to write to absolute path outside project
+        var outsidePath = Path.Combine(Path.GetTempPath(), "malicious.txt");
+        var toolCall = CreateToolCall("write_file", new { 
+            filename = outsidePath, 
+            content = "malicious content" 
+        });
+
+        // Act
+        var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
+
+        // Assert
+        Assert.Contains("Access denied", result);
+        Assert.Contains("outside project directory", result);
+    }
+
+    [Fact]
+    public async Task WriteFile_SymlinkAttack_ReturnsAccessDenied()
+    {
+        // Arrange - try to use directory traversal with mixed path separators
+        var toolCall = CreateToolCall("write_file", new { 
+            filename = "..\\..\\..\\tmp/malicious.txt", 
+            content = "malicious content" 
+        });
+
+        // Act
+        var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
+
+        // Assert
+        Assert.Contains("Access denied", result);
+        Assert.Contains("outside project directory", result);
+    }
+
+    [Fact]
     public void ProjectToolProvider_CreateTools_ReturnsExpectedTools()
     {
         // Act

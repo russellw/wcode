@@ -29,15 +29,37 @@ public class ProjectToolExecutor
                 {
                     case "read_file":
                         var filename = arguments.GetProperty("filename").GetString();
-                        var readResult = await _queryService!.ProcessQueryAsync($"read file {filename}");
-                        result = readResult is { Success: true } ? readResult.Message : $"Error reading file: {readResult?.Message ?? "Unknown error"}";
+                        
+                        // Validate filename parameter
+                        if (string.IsNullOrEmpty(filename))
+                        {
+                            result = "Error reading file: No file path specified";
+                        }
+                        else
+                        {
+                            var readResult = await _queryService!.ProcessQueryAsync($"read file {filename}");
+                            result = readResult is { Success: true } ? readResult.Message : $"Error reading file: {readResult?.Message ?? "Unknown error"}";  
+                        }
                         break;
                         
                     case "write_file":
                         var writeFilename = arguments.GetProperty("filename").GetString();
                         var content = arguments.GetProperty("content").GetString();
-                        var writeResult = await _queryService!.ProcessQueryAsync($"write file {writeFilename} content: {content}");
-                        result = writeResult is { Success: true } ? writeResult.Message : $"Error writing file: {writeResult?.Message ?? "Unknown error"}";
+                        
+                        // Validate parameters before processing
+                        if (string.IsNullOrEmpty(writeFilename))
+                        {
+                            result = "Error writing file: No file path specified";
+                        }
+                        else if (string.IsNullOrEmpty(content))
+                        {
+                            result = "Error writing file: No content specified";
+                        }
+                        else
+                        {
+                            var writeResult = await _queryService!.ProcessQueryAsync($"write file {writeFilename} content: {content}");
+                            result = writeResult is { Success: true } ? writeResult.Message : $"Error writing file: {writeResult?.Message ?? "Unknown error"}";  
+                        }
                         break;
                         
                     case "list_files":
