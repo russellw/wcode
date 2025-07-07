@@ -17,11 +17,16 @@ class Program
                 return 0;
             }
             
-            if (string.IsNullOrEmpty(options.BatchFile))
+            if (string.IsNullOrEmpty(options.BatchFile) && !options.TestTool)
             {
-                Console.WriteLine("Error: batch file is required");
+                Console.WriteLine("Error: batch file is required (or use --test-tool)");
                 ShowHelp();
                 return 1;
+            }
+            
+            if (options.TestTool)
+            {
+                return await RunToolTestAsync(options);
             }
             
             return await RunBatchModeAsync(options);
@@ -45,6 +50,16 @@ class Program
                     options.ShowHelp = true;
                     break;
                     
+                case "--test-tool" when i + 1 < args.Length:
+                    options.TestTool = true;
+                    options.ToolName = args[i + 1];
+                    i++; // Skip next argument since we consumed it
+                    break;
+                    
+                case var arg when arg.StartsWith("--test-tool="):
+                    options.TestTool = true;
+                    options.ToolName = arg.Substring("--test-tool=".Length);
+                    break;
                     
                 case "--project-dir" when i + 1 < args.Length:
                     options.ProjectDirectory = args[i + 1];
@@ -78,19 +93,22 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Usage:");
         Console.WriteLine("  wcode.cli <batch-file> [project-dir] [options]");
+        Console.WriteLine("  wcode.cli --test-tool <tool-name> [project-dir] [options]");
         Console.WriteLine();
         Console.WriteLine("Arguments:");
         Console.WriteLine("  batch-file               Batch file containing LLM instructions");
         Console.WriteLine("  project-dir              Project directory path (optional)");
         Console.WriteLine();
         Console.WriteLine("Options:");
+        Console.WriteLine("  --test-tool <name>       Test individual tool (read_file, list_files, search_files, get_project_structure, get_system_info)");
         Console.WriteLine("  --project-dir <path>     Project directory path (alternative to positional arg)");
         Console.WriteLine("  --help, -h               Show this help message");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  wcode.cli instructions.txt");
         Console.WriteLine("  wcode.cli batch.txt /path/to/project");
-        Console.WriteLine("  wcode.cli batch.txt --project-dir=/path/to/project");
+        Console.WriteLine("  wcode.cli --test-tool read_file /path/to/project");
+        Console.WriteLine("  wcode.cli --test-tool=list_files --project-dir=/path/to/project");
         Console.WriteLine();
         Console.WriteLine("Batch file format:");
         Console.WriteLine("  Multiple prompts can be separated by double newlines (\\n\\n) or '---'");
@@ -246,6 +264,107 @@ class Program
         }
     }
     
+    private static async Task<int> RunToolTestAsync(CommandLineOptions options)
+    {
+        try
+        {
+            Console.WriteLine($"Testing tool: {options.ToolName}");
+            
+            // Determine project directory
+            string projectPath;
+            if (!string.IsNullOrEmpty(options.ProjectDirectory))
+            {
+                projectPath = Path.GetFullPath(options.ProjectDirectory);
+                if (!Directory.Exists(projectPath))
+                {
+                    Console.WriteLine($"Error: Project directory does not exist: {projectPath}");
+                    return 1;
+                }
+            }
+            else
+            {
+                projectPath = Directory.GetCurrentDirectory();
+            }
+            
+            Console.WriteLine($"Using project directory: {projectPath}");
+            
+            // Create query service and tool executor
+            var queryService = new ProjectQueryService(projectPath);
+            var toolExecutor = new ProjectToolExecutor(queryService);
+            
+            // Create test tool call based on tool name
+            var toolCall = CreateTestToolCall(options.ToolName!);
+            if (toolCall == null)
+            {
+                Console.WriteLine($"Error: Unknown tool name '{options.ToolName}'. Available tools: read_file, list_files, search_files, get_project_structure, get_system_info");
+                return 1;
+            }
+            
+            Console.WriteLine($"Executing tool '{options.ToolName}'...");
+            var result = await toolExecutor.ExecuteToolCallAsync(toolCall);
+            
+            Console.WriteLine("\n--- Tool Result ---");
+            Console.WriteLine(result);
+            Console.WriteLine("\n--- End Result ---");
+            
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error testing tool: {ex.Message}");
+            return 1;
+        }
+    }
+    
+    private static ToolCall? CreateTestToolCall(string toolName)
+    {
+        var toolCall = new ToolCall
+        {
+            Id = Guid.NewGuid().ToString(),
+            Type = "function",
+            Function = new ToolCallFunction
+            {
+                Name = toolName
+            }
+        };
+        
+        switch (toolName)
+        {
+            case "read_file":
+                Console.Write("Enter filename to read: ");
+                var filename = Console.ReadLine();
+                if (string.IsNullOrEmpty(filename))
+                {
+                    Console.WriteLine("Error: filename is required");
+                    return null;
+                }
+                toolCall.Function.Arguments = JsonSerializer.SerializeToElement(new { filename });
+                break;
+                
+            case "search_files":
+                Console.Write("Enter search query: ");
+                var query = Console.ReadLine();
+                if (string.IsNullOrEmpty(query))
+                {
+                    Console.WriteLine("Error: search query is required");
+                    return null;
+                }
+                toolCall.Function.Arguments = JsonSerializer.SerializeToElement(new { query });
+                break;
+                
+            case "list_files":
+            case "get_project_structure":
+            case "get_system_info":
+                toolCall.Function.Arguments = JsonSerializer.SerializeToElement(new { });
+                break;
+                
+            default:
+                return null;
+        }
+        
+        return toolCall;
+    }
+    
 }
 
 public class CommandLineOptions
@@ -253,4 +372,6 @@ public class CommandLineOptions
     public string? BatchFile { get; set; }
     public string? ProjectDirectory { get; set; }
     public bool ShowHelp { get; set; }
+    public bool TestTool { get; set; }
+    public string? ToolName { get; set; }
 }
