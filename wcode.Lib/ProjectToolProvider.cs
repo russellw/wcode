@@ -40,6 +40,33 @@ public class ProjectToolProvider
                     Type = "function",
                     Function = new ToolFunction
                     {
+                        Name = "write_file",
+                        Description = "Write content to a file in the project",
+                        Parameters = JsonSerializer.SerializeToElement(new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                filename = new
+                                {
+                                    type = "string",
+                                    description = "The name or path of the file to write"
+                                },
+                                content = new
+                                {
+                                    type = "string",
+                                    description = "The content to write to the file"
+                                }
+                            },
+                            required = new[] { "filename", "content" }
+                        })
+                    }
+                },
+                new Tool
+                {
+                    Type = "function",
+                    Function = new ToolFunction
+                    {
                         Name = "list_files",
                         Description = "List all files in the project directory",
                         Parameters = JsonSerializer.SerializeToElement(new

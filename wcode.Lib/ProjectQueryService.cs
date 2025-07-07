@@ -25,6 +25,7 @@ public class ProjectQueryService
             return command.Type switch
             {
                 QueryType.ReadFile => await ReadFileAsync(command.Target),
+                QueryType.WriteFile => await WriteFileAsync(command.Target, command.SearchTerm),
                 QueryType.ListFiles => await ListFilesAsync(command.Target),
                 QueryType.SearchFiles => await SearchFilesAsync(command.Target, command.SearchTerm),
                 QueryType.GetProjectStructure => await GetProjectStructureAsync(),
@@ -52,6 +53,13 @@ public class ProjectQueryService
         {
             var filePath = ExtractFilePath(query);
             return new QueryCommand { Type = QueryType.ReadFile, Target = filePath };
+        }
+        
+        if (lowerQuery.Contains("write file") || lowerQuery.Contains("create file") || lowerQuery.Contains("save file"))
+        {
+            var filePath = ExtractFilePath(query);
+            var content = ExtractFileContent(query);
+            return new QueryCommand { Type = QueryType.WriteFile, Target = filePath, SearchTerm = content };
         }
         
         if (lowerQuery.Contains("list files") || lowerQuery.Contains("what files"))
@@ -115,6 +123,48 @@ public class ProjectQueryService
             Message = $"Content of {relativePath}:\n\n```\n{content}\n```",
             Data = new { FilePath = relativePath, Content = content }
         };
+    }
+    
+    private async Task<QueryResult> WriteFileAsync(string filePath, string content)
+    {
+        if (string.IsNullOrEmpty(filePath))
+        {
+            return new QueryResult { Success = false, Message = "No file path specified" };
+        }
+        
+        if (string.IsNullOrEmpty(content))
+        {
+            return new QueryResult { Success = false, Message = "No content specified" };
+        }
+
+        try
+        {
+            var fullPath = Path.IsPathRooted(filePath) ? filePath : Path.Combine(_projectPath, filePath);
+            
+            // Ensure the directory exists
+            var directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            
+            await File.WriteAllTextAsync(fullPath, content);
+            var relativePath = Path.GetRelativePath(_projectPath, fullPath);
+            
+            return new QueryResult 
+            { 
+                Success = true, 
+                Message = $"Successfully wrote {content.Length} characters to {relativePath}" 
+            };
+        }
+        catch (Exception ex)
+        {
+            return new QueryResult 
+            { 
+                Success = false, 
+                Message = $"Error writing file {filePath}: {ex.Message}" 
+            };
+        }
     }
 
     private Task<QueryResult> ListFilesAsync(string directory)
@@ -476,6 +526,25 @@ public class ProjectQueryService
         
         return "";
     }
+    
+    private string ExtractFileContent(string query)
+    {
+        // Look for content after "content:" or similar patterns
+        var contentMatch = System.Text.RegularExpressions.Regex.Match(query, @"content[:\s]+(.+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+        if (contentMatch.Success)
+        {
+            return contentMatch.Groups[1].Value.Trim();
+        }
+        
+        // Look for content in quotes after the filename
+        var quotedMatch = System.Text.RegularExpressions.Regex.Match(query, @"\w+\.\w+\s+[""']([^""']+)[""']");
+        if (quotedMatch.Success)
+        {
+            return quotedMatch.Groups[1].Value;
+        }
+        
+        return "";
+    }
 
     private string? ExtractDirectoryPath(string query)
     {
@@ -527,6 +596,7 @@ public class ProjectQueryService
 public enum QueryType
 {
     ReadFile,
+    WriteFile,
     ListFiles,
     SearchFiles,
     GetProjectStructure,

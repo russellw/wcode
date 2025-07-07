@@ -33,6 +33,13 @@ public class ProjectToolExecutor
                         result = readResult is { Success: true } ? readResult.Message : $"Error reading file: {readResult?.Message ?? "Unknown error"}";
                         break;
                         
+                    case "write_file":
+                        var writeFilename = arguments.GetProperty("filename").GetString();
+                        var content = arguments.GetProperty("content").GetString();
+                        var writeResult = await _queryService!.ProcessQueryAsync($"write file {writeFilename} content: {content}");
+                        result = writeResult is { Success: true } ? writeResult.Message : $"Error writing file: {writeResult?.Message ?? "Unknown error"}";
+                        break;
+                        
                     case "list_files":
                         var listResult = await _queryService!.ProcessQueryAsync("list files");
                         result = listResult is { Success: true } ? listResult.Message : $"Error listing files: {listResult?.Message ?? "Unknown error"}";
@@ -54,7 +61,7 @@ public class ProjectToolExecutor
                                      $"- Tool calling: Available\n" +
                                      $"- Project query service: {(_queryService != null ? "Available" : "Not available")}\n" +
                                      $"- Current time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-                                     $"- Available tools: {(_queryService != null ? "read_file, list_files, search_files, get_project_structure, get_system_info" : "get_system_info only")}";
+                                     $"- Available tools: {(_queryService != null ? "read_file, write_file, list_files, search_files, get_project_structure, get_system_info" : "get_system_info only")}";
                         result = sysInfo;
                         break;
                         

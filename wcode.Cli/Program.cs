@@ -100,7 +100,7 @@ class Program
         Console.WriteLine("  project-dir              Project directory path (optional)");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  --test-tool <name>       Test individual tool (read_file, list_files, search_files, get_project_structure, get_system_info)");
+        Console.WriteLine("  --test-tool <name>       Test individual tool (read_file, write_file, list_files, search_files, get_project_structure, get_system_info)");
         Console.WriteLine("  --project-dir <path>     Project directory path (alternative to positional arg)");
         Console.WriteLine("  --help, -h               Show this help message");
         Console.WriteLine();
@@ -296,7 +296,7 @@ class Program
             var toolCall = CreateTestToolCall(options.ToolName!);
             if (toolCall == null)
             {
-                Console.WriteLine($"Error: Unknown tool name '{options.ToolName}'. Available tools: read_file, list_files, search_files, get_project_structure, get_system_info");
+                Console.WriteLine($"Error: Unknown tool name '{options.ToolName}'. Available tools: read_file, write_file, list_files, search_files, get_project_structure, get_system_info");
                 return 1;
             }
             
@@ -339,6 +339,24 @@ class Program
                     return null;
                 }
                 toolCall.Function.Arguments = JsonSerializer.SerializeToElement(new { filename });
+                break;
+                
+            case "write_file":
+                Console.Write("Enter filename to write: ");
+                var writeFilename = Console.ReadLine();
+                if (string.IsNullOrEmpty(writeFilename))
+                {
+                    Console.WriteLine("Error: filename is required");
+                    return null;
+                }
+                Console.Write("Enter content to write: ");
+                var content = Console.ReadLine();
+                if (string.IsNullOrEmpty(content))
+                {
+                    Console.WriteLine("Error: content is required");
+                    return null;
+                }
+                toolCall.Function.Arguments = JsonSerializer.SerializeToElement(new { filename = writeFilename, content });
                 break;
                 
             case "search_files":

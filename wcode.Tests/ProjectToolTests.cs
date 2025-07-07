@@ -94,6 +94,56 @@ class Program
     }
 
     [Fact]
+    public async Task WriteFile_ValidInput_CreatesFile()
+    {
+        // Arrange
+        var filename = "NewFile.cs";
+        var content = "using System;\n\nnamespace Test\n{\n    public class NewClass\n    {\n    }\n}";
+        var toolCall = CreateToolCall("write_file", new { filename, content });
+
+        // Act
+        var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
+
+        // Assert
+        Assert.Contains("Successfully wrote", result);
+        Assert.Contains(filename, result);
+        
+        // Verify file was actually created
+        var filePath = Path.Combine(_testProjectPath, filename);
+        Assert.True(File.Exists(filePath));
+        var actualContent = await File.ReadAllTextAsync(filePath);
+        Assert.Equal(content, actualContent);
+    }
+
+    [Fact]
+    public async Task WriteFile_EmptyContent_ReturnsError()
+    {
+        // Arrange
+        var toolCall = CreateToolCall("write_file", new { filename = "test.txt", content = "" });
+
+        // Act
+        var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
+
+        // Assert
+        Assert.Contains("Error", result);
+        Assert.Contains("No content specified", result);
+    }
+
+    [Fact]
+    public async Task WriteFile_EmptyFilename_ReturnsError()
+    {
+        // Arrange
+        var toolCall = CreateToolCall("write_file", new { filename = "", content = "test content" });
+
+        // Act
+        var result = await _toolExecutor.ExecuteToolCallAsync(toolCall);
+
+        // Assert
+        Assert.Contains("Error", result);
+        Assert.Contains("No file path specified", result);
+    }
+
+    [Fact]
     public async Task ListFiles_ValidProject_ReturnsFileList()
     {
         // Arrange
@@ -191,8 +241,9 @@ class Program
         var tools = ProjectToolProvider.CreateProjectTools(_queryService);
 
         // Assert
-        Assert.Equal(5, tools.Count);
+        Assert.Equal(6, tools.Count);
         Assert.Contains(tools, t => t.Function.Name == "read_file");
+        Assert.Contains(tools, t => t.Function.Name == "write_file");
         Assert.Contains(tools, t => t.Function.Name == "list_files");
         Assert.Contains(tools, t => t.Function.Name == "search_files");
         Assert.Contains(tools, t => t.Function.Name == "get_project_structure");
