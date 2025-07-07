@@ -1,1 +1,1 @@
-dotnet run --project wcode.Cli %*
+dotnet run --project wcode.Cli -- %*
