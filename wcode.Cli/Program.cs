@@ -19,7 +19,7 @@ class Program
             
             if (string.IsNullOrEmpty(options.BatchFile))
             {
-                Console.WriteLine("Error: --batch option is required");
+                Console.WriteLine("Error: batch file is required");
                 ShowHelp();
                 return 1;
             }
@@ -45,14 +45,6 @@ class Program
                     options.ShowHelp = true;
                     break;
                     
-                case "--batch" when i + 1 < args.Length:
-                    options.BatchFile = args[i + 1];
-                    i++; // Skip next argument since we consumed it
-                    break;
-                    
-                case var arg when arg.StartsWith("--batch="):
-                    options.BatchFile = arg.Substring("--batch=".Length);
-                    break;
                     
                 case "--project-dir" when i + 1 < args.Length:
                     options.ProjectDirectory = args[i + 1];
@@ -63,9 +55,16 @@ class Program
                     options.ProjectDirectory = arg.Substring("--project-dir=".Length);
                     break;
                     
-                case var arg when !arg.StartsWith("--") && string.IsNullOrEmpty(options.ProjectDirectory):
-                    // First non-option argument is project directory
-                    options.ProjectDirectory = arg;
+                case var arg when !arg.StartsWith("--"):
+                    // First non-option argument is batch file, second is project directory
+                    if (string.IsNullOrEmpty(options.BatchFile))
+                    {
+                        options.BatchFile = arg;
+                    }
+                    else if (string.IsNullOrEmpty(options.ProjectDirectory))
+                    {
+                        options.ProjectDirectory = arg;
+                    }
                     break;
             }
         }
@@ -78,17 +77,20 @@ class Program
         Console.WriteLine("wcode CLI - Command line interface for LLM-assisted development");
         Console.WriteLine();
         Console.WriteLine("Usage:");
-        Console.WriteLine("  wcode.cli --batch <file> [options]");
+        Console.WriteLine("  wcode.cli <batch-file> [project-dir] [options]");
+        Console.WriteLine();
+        Console.WriteLine("Arguments:");
+        Console.WriteLine("  batch-file               Batch file containing LLM instructions");
+        Console.WriteLine("  project-dir              Project directory path (optional)");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  --batch <file>           Batch file containing LLM instructions");
-        Console.WriteLine("  --project-dir <path>     Project directory path (optional)");
+        Console.WriteLine("  --project-dir <path>     Project directory path (alternative to positional arg)");
         Console.WriteLine("  --help, -h               Show this help message");
         Console.WriteLine();
         Console.WriteLine("Examples:");
-        Console.WriteLine("  wcode.cli --batch instructions.txt");
-        Console.WriteLine("  wcode.cli --batch=batch.txt --project-dir=/path/to/project");
-        Console.WriteLine("  wcode.cli /path/to/project --batch instructions.txt");
+        Console.WriteLine("  wcode.cli instructions.txt");
+        Console.WriteLine("  wcode.cli batch.txt /path/to/project");
+        Console.WriteLine("  wcode.cli batch.txt --project-dir=/path/to/project");
         Console.WriteLine();
         Console.WriteLine("Batch file format:");
         Console.WriteLine("  Multiple prompts can be separated by double newlines (\\n\\n) or '---'");
