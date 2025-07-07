@@ -1,9 +1,0 @@
-What is the overall structure of this project? Please use the get_project_structure tool to analyze it.
-
----
-
-Can you read the main configuration file? Please use the read_file tool to check if there's a .csproj file.
-
----
-
-Search for any TODO comments in the codebase using the search_files tool.
