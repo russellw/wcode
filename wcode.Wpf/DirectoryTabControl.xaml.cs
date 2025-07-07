@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -170,7 +171,7 @@ public partial class DirectoryTabControl : UserControl
             ".obj", ".o", ".lib", ".a", ".pdb", ".ilk", ".exp"
         };
         
-        return binaryExtensions.Contains(extension);
+        return Array.IndexOf(binaryExtensions, extension) >= 0;
     }
     
     private bool IsTextFile(string filePath)
@@ -184,6 +185,6 @@ public partial class DirectoryTabControl : UserControl
             ".swift", ".kt", ".scala", ".clj", ".pl", ".r", ".m", ".mm", ".xaml"
         };
         
-        return textExtensions.Contains(extension);
+        return Array.IndexOf(textExtensions, extension) >= 0;
     }
 }
