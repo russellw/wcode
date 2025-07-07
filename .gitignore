@@ -60,3 +60,4 @@ ollama_tool_calling_log.csv
 ollama_debug_request.json
 ollama_debug_tools.txt
 debug_args.txt
+build_output.txt 
