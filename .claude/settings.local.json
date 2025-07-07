@@ -7,7 +7,8 @@
       "Bash(chmod:*)",
       "Bash(ls:*)",
       "Bash(grep:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(dotnet test:*)"
     ],
     "deny": []
   }
