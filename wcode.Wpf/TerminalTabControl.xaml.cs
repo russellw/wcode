@@ -54,6 +54,7 @@ public partial class TerminalTabControl : UserControl
     private bool _isConnected = false;
     private ConversationLogger? _conversationLogger;
     private ProjectQueryService? _queryService;
+    private ProjectToolExecutor? _toolExecutor;
 
     public TerminalTabControl()
     {
@@ -185,8 +186,9 @@ public partial class TerminalTabControl : UserControl
         // Add user message to conversation history
         _conversationHistory.Add(new wcode.Lib.ChatMessage { Role = "user", Content = userMessage });
         
-        // Create project tools if available
-        var tools = CreateProjectTools();
+        // Create project tools using library
+        var tools = ProjectToolProvider.CreateProjectTools(_queryService);
+        _toolExecutor = new ProjectToolExecutor(_queryService);
         
         // Debug: Log tool creation
         var debugInfo = $"Created {tools?.Count ?? 0} tools for user message: {userMessage}";
@@ -291,7 +293,7 @@ public partial class TerminalTabControl : UserControl
                     
                     foreach (var toolCall in response.Message.ToolCalls)
                     {
-                        var toolResult = await ExecuteToolCall(toolCall);
+                        var toolResult = await _toolExecutor!.ExecuteToolCallAsync(toolCall);
                         toolResults.Add(toolResult);
                     }
                     
@@ -423,205 +425,6 @@ public partial class TerminalTabControl : UserControl
         return queryKeywords.Any(keyword => lowerMessage.Contains(keyword));
     }
     
-    private List<Tool>? CreateProjectTools()
-    {
-        // Always provide basic tools, even if project query service is unavailable
-        var tools = new List<Tool>();
-        
-        // Add project tools only if query service is available
-        if (_queryService != null)
-        {
-            tools.AddRange(new List<Tool>
-        {
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "read_file",
-                    Description = "Read the contents of a file in the project",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new
-                        {
-                            filename = new
-                            {
-                                type = "string",
-                                description = "The name or path of the file to read"
-                            }
-                        },
-                        required = new[] { "filename" }
-                    })
-                }
-            },
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "list_files",
-                    Description = "List all files in the project directory",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new object(),
-                        required = new string[0]
-                    })
-                }
-            },
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "search_files",
-                    Description = "Search for content within project files",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new
-                        {
-                            query = new
-                            {
-                                type = "string",
-                                description = "The text to search for"
-                            }
-                        },
-                        required = new[] { "query" }
-                    })
-                }
-            },
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "get_project_structure",
-                    Description = "Get the overall structure of the project",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new object(),
-                        required = new string[0]
-                    })
-                }
-            }
-            });
-        }
-        
-        // Add a simple diagnostic tool that always works
-        tools.Add(new Tool
-        {
-            Type = "function",
-            Function = new ToolFunction
-            {
-                Name = "get_system_info",
-                Description = "Get information about the current system and available capabilities",
-                Parameters = JsonSerializer.SerializeToElement(new
-                {
-                    type = "object",
-                    properties = new object(),
-                    required = new string[0]
-                })
-            }
-        });
-        
-        return tools.Count > 0 ? tools : null;
-    }
-    
-    private async Task<string> ExecuteToolCall(ToolCall toolCall)
-    {
-        var functionName = toolCall.Function.Name;
-        var arguments = toolCall.Function.Arguments;
-        string result;
-        
-        if (_queryService == null && functionName != "get_system_info")
-        {
-            result = "Project query service not available";
-        }
-        else
-        {
-            try
-            {
-                switch (functionName)
-            {
-                case "read_file":
-                    var filename = arguments.GetProperty("filename").GetString();
-                    var readResult = await _queryService!.ProcessQueryAsync($"read file {filename}");
-                    result = readResult is { Success: true } ? readResult.Message : $"Error reading file: {readResult?.Message ?? "Unknown error"}";
-                    break;
-                    
-                case "list_files":
-                    var listResult = await _queryService!.ProcessQueryAsync("list files");
-                    result = listResult is { Success: true } ? listResult.Message : $"Error listing files: {listResult?.Message ?? "Unknown error"}";
-                    break;
-                    
-                case "search_files":
-                    var query = arguments.GetProperty("query").GetString();
-                    var searchResult = await _queryService!.ProcessQueryAsync($"search for {query}");
-                    result = searchResult is { Success: true } ? searchResult.Message : $"Error searching files: {searchResult?.Message ?? "Unknown error"}";
-                    break;
-                    
-                case "get_project_structure":
-                    var structureResult = await _queryService!.ProcessQueryAsync("project structure");
-                    result = structureResult is { Success: true } ? structureResult.Message : $"Error getting project structure: {structureResult?.Message ?? "Unknown error"}";
-                    break;
-                    
-                case "get_system_info":
-                    var sysInfo = $"System Information:\n" +
-                                 $"- Tool calling: Available\n" +
-                                 $"- Project query service: {(_queryService != null ? "Available" : "Not available")}\n" +
-                                 $"- Current time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-                                 $"- Available tools: {(_queryService != null ? "read_file, list_files, search_files, get_project_structure, get_system_info" : "get_system_info only")}";
-                    result = sysInfo;
-                    break;
-                    
-                default:
-                    result = $"Unknown tool function: {functionName}";
-                    break;
-                }
-            }
-            catch (Exception ex)
-            {
-                result = $"Error executing tool call: {ex.Message}";
-            }
-        }
-        
-        // Log the tool execution
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                if (_conversationLogger != null)
-                {
-                    var toolExecution = new
-                    {
-                        tool_call = new
-                        {
-                            id = toolCall.Id,
-                            type = toolCall.Type,
-                            function = new
-                            {
-                                name = functionName,
-                                arguments = arguments
-                            }
-                        },
-                        result = result
-                    };
-                    
-                    var toolJson = JsonSerializer.Serialize(toolExecution, new JsonSerializerOptions { WriteIndented = true });
-                    await _conversationLogger.LogConversationAsync("Tool", toolJson);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to log tool execution: {ex.Message}");
-            }
-        });
-        
-        return result;
-    }
     
     private async Task HandleProjectQueryAsync(string userMessage)
     {

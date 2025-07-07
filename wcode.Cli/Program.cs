@@ -208,8 +208,9 @@ class Program
             
             try
             {
-                // Create project tools
-                var tools = CreateProjectTools();
+                // Create project tools using library
+                var tools = ProjectToolProvider.CreateProjectTools(queryService);
+                var toolExecutor = new ProjectToolExecutor(queryService);
                 
                 // Send prompt to LLM with tool calling support
                 var response = await ollamaClient.ChatWithToolsAsync(modelName, prompt, null, tools);
@@ -225,7 +226,7 @@ class Program
                         
                         foreach (var toolCall in response.Message.ToolCalls)
                         {
-                            var result = await ExecuteToolCall(queryService, toolCall);
+                            var result = await toolExecutor.ExecuteToolCallAsync(toolCall);
                             Console.WriteLine($"Tool '{toolCall.Function.Name}' result: {result.Substring(0, Math.Min(200, result.Length))}...");
                         }
                     }
@@ -245,161 +246,6 @@ class Program
         }
     }
     
-    private static async Task<string> ExecuteToolCall(ProjectQueryService queryService, ToolCall toolCall)
-    {
-        try
-        {
-            var functionName = toolCall.Function.Name;
-            var arguments = toolCall.Function.Arguments;
-            
-            return functionName switch
-            {
-                "read_file" => await HandleReadFile(queryService, arguments),
-                "list_files" => await HandleListFiles(queryService, arguments),
-                "search_files" => await HandleSearchFiles(queryService, arguments),
-                "get_project_structure" => await HandleGetProjectStructure(queryService, arguments),
-                "get_system_info" => HandleGetSystemInfo(),
-                _ => $"Unknown tool: {functionName}"
-            };
-        }
-        catch (Exception ex)
-        {
-            return $"Error executing tool: {ex.Message}";
-        }
-    }
-    
-    private static async Task<string> HandleReadFile(ProjectQueryService queryService, JsonElement arguments)
-    {
-        var filename = arguments.GetProperty("filename").GetString();
-        var result = await queryService.ProcessQueryAsync($"read file {filename}");
-        return result?.Success == true ? result.Message : $"Error: {result?.Message ?? "Unknown error"}";
-    }
-    
-    private static async Task<string> HandleListFiles(ProjectQueryService queryService, JsonElement arguments)
-    {
-        var result = await queryService.ProcessQueryAsync("list files");
-        return result?.Success == true ? result.Message : $"Error: {result?.Message ?? "Unknown error"}";
-    }
-    
-    private static async Task<string> HandleSearchFiles(ProjectQueryService queryService, JsonElement arguments)
-    {
-        var query = arguments.GetProperty("query").GetString();
-        var result = await queryService.ProcessQueryAsync($"search for {query}");
-        return result?.Success == true ? result.Message : $"Error: {result?.Message ?? "Unknown error"}";
-    }
-    
-    private static async Task<string> HandleGetProjectStructure(ProjectQueryService queryService, JsonElement arguments)
-    {
-        var result = await queryService.ProcessQueryAsync("project structure");
-        return result?.Success == true ? result.Message : $"Error: {result?.Message ?? "Unknown error"}";
-    }
-    
-    private static string HandleGetSystemInfo()
-    {
-        return $"System Information:\n" +
-               $"- Tool calling: Available\n" +
-               $"- Project query service: Available\n" +
-               $"- Current time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-               $"- Available tools: read_file, list_files, search_files, get_project_structure, get_system_info";
-    }
-    
-    private static List<Tool> CreateProjectTools()
-    {
-        var tools = new List<Tool>
-        {
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "read_file",
-                    Description = "Read the contents of a file in the project",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new
-                        {
-                            filename = new
-                            {
-                                type = "string",
-                                description = "The name or path of the file to read"
-                            }
-                        },
-                        required = new[] { "filename" }
-                    })
-                }
-            },
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "list_files",
-                    Description = "List all files in the project directory",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new object(),
-                        required = new string[0]
-                    })
-                }
-            },
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "search_files",
-                    Description = "Search for content within project files",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new
-                        {
-                            query = new
-                            {
-                                type = "string",
-                                description = "The text to search for"
-                            }
-                        },
-                        required = new[] { "query" }
-                    })
-                }
-            },
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "get_project_structure",
-                    Description = "Get the overall structure of the project",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new object(),
-                        required = new string[0]
-                    })
-                }
-            },
-            new Tool
-            {
-                Type = "function",
-                Function = new ToolFunction
-                {
-                    Name = "get_system_info",
-                    Description = "Get information about the current system and available capabilities",
-                    Parameters = JsonSerializer.SerializeToElement(new
-                    {
-                        type = "object",
-                        properties = new object(),
-                        required = new string[0]
-                    })
-                }
-            }
-        };
-        
-        return tools;
-    }
 }
 
 public class CommandLineOptions
