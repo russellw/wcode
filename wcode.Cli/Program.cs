@@ -230,29 +230,11 @@ class Program
                 var tools = ProjectToolProvider.CreateProjectTools(queryService);
                 var toolExecutor = new ProjectToolExecutor(queryService);
                 
-                // Send prompt to LLM with tool calling support
-                var response = await ollamaClient.ChatWithToolsAsync(modelName, prompt, null, tools);
+                // Initialize conversation history for this prompt
+                var conversationHistory = new List<ChatMessage>();
                 
-                if (response?.Message != null)
-                {
-                    Console.WriteLine($"LLM Response: {response.Message.Content}");
-                    
-                    // Handle any tool calls
-                    if (response.Message.ToolCalls?.Any() == true)
-                    {
-                        Console.WriteLine($"Processing {response.Message.ToolCalls.Count} tool call(s)...");
-                        
-                        foreach (var toolCall in response.Message.ToolCalls)
-                        {
-                            var result = await toolExecutor.ExecuteToolCallAsync(toolCall);
-                            Console.WriteLine($"Tool '{toolCall.Function.Name}' result: {result.Substring(0, Math.Min(200, result.Length))}...");
-                        }
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("No response received from LLM");
-                }
+                // Process the prompt with conversation loop
+                await ProcessPromptWithConversationLoop(ollamaClient, modelName, prompt, tools, toolExecutor, conversationHistory);
             }
             catch (Exception ex)
             {
@@ -261,6 +243,96 @@ class Program
             
             // Small delay between prompts
             await Task.Delay(1000);
+        }
+    }
+    
+    private static async Task ProcessPromptWithConversationLoop(
+        OllamaClient ollamaClient, 
+        string modelName, 
+        string initialPrompt, 
+        List<Tool> tools, 
+        ProjectToolExecutor toolExecutor, 
+        List<ChatMessage> conversationHistory)
+    {
+        // Add initial user message
+        conversationHistory.Add(new ChatMessage { Role = "user", Content = initialPrompt });
+        
+        const int maxIterations = 10; // Prevent infinite loops
+        int iteration = 0;
+        
+        while (iteration < maxIterations)
+        {
+            iteration++;
+            Console.WriteLine($"\n--- Conversation turn {iteration} ---");
+            
+            // Send current conversation to LLM
+            var response = await ollamaClient.ChatWithToolsAsync(modelName, 
+                conversationHistory.Last().Content, 
+                conversationHistory.Take(conversationHistory.Count - 1).ToList(), 
+                tools);
+            
+            if (response?.Message == null)
+            {
+                Console.WriteLine("No response received from LLM");
+                break;
+            }
+            
+            // Display LLM response
+            if (!string.IsNullOrEmpty(response.Message.Content))
+            {
+                Console.WriteLine($"LLM Response: {response.Message.Content}");
+            }
+            
+            // Check if there are tool calls to process
+            if (response.Message.ToolCalls?.Any() == true)
+            {
+                Console.WriteLine($"Processing {response.Message.ToolCalls.Count} tool call(s)...");
+                
+                // Add assistant message with tool calls to history
+                conversationHistory.Add(new ChatMessage 
+                { 
+                    Role = "assistant", 
+                    Content = response.Message.Content ?? "", 
+                    ToolCalls = response.Message.ToolCalls 
+                });
+                
+                // Execute each tool call and add results to conversation
+                var allToolResults = new List<string>();
+                foreach (var toolCall in response.Message.ToolCalls)
+                {
+                    var result = await toolExecutor.ExecuteToolCallAsync(toolCall);
+                    Console.WriteLine($"Tool '{toolCall.Function.Name}' executed successfully");
+                    
+                    // Add tool result as user message
+                    conversationHistory.Add(new ChatMessage 
+                    { 
+                        Role = "user", 
+                        Content = $"Tool result for {toolCall.Function.Name}: {result}" 
+                    });
+                    
+                    allToolResults.Add(result);
+                }
+                
+                // Continue the conversation loop to let LLM process tool results
+                continue;
+            }
+            else
+            {
+                // No tool calls - conversation is complete
+                conversationHistory.Add(new ChatMessage 
+                { 
+                    Role = "assistant", 
+                    Content = response.Message.Content ?? "" 
+                });
+                
+                Console.WriteLine("Conversation completed - no further tool calls needed.");
+                break;
+            }
+        }
+        
+        if (iteration >= maxIterations)
+        {
+            Console.WriteLine("Warning: Reached maximum conversation iterations, stopping.");
         }
     }
     
