@@ -1,2 +1,2 @@
-echo I just ran `dotnet run --project wcode.Cli example\instructions.txt|tee example\output.txt`. Look at example\output.txt for the results |clip
-dotnet run --project wcode.Cli example\instructions.txt|tee example\output.txt
+echo I just ran `dotnet run --project wcode.Cli example/instructions.txt example|tee log.txt`. Look in example/ and log.txt for the results |clip
+dotnet run --project wcode.Cli example/instructions.txt example|tee log.txt

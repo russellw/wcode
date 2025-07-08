@@ -7,5 +7,6 @@ llm_conversations.csv
 
 ollama_debug_request.json
 ollama_debug_tools.txt
-example/
 
+example/
+log.txt
