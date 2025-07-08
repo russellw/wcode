@@ -301,7 +301,17 @@ class Program
                 foreach (var toolCall in response.Message.ToolCalls)
                 {
                     var result = await toolExecutor.ExecuteToolCallAsync(toolCall);
-                    Console.WriteLine($"Tool '{toolCall.Function.Name}' executed successfully");
+                    
+                    // Check if tool execution was successful or failed
+                    bool isSuccess = !result.StartsWith("Error") && !result.StartsWith("Unknown tool function");
+                    if (isSuccess)
+                    {
+                        Console.WriteLine($"Tool '{toolCall.Function.Name}' executed successfully");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Tool '{toolCall.Function.Name}' failed: {result}");
+                    }
                     
                     // Add tool result as user message
                     conversationHistory.Add(new ChatMessage 
