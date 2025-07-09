@@ -113,6 +113,38 @@ public class ProjectToolProvider
                             required = new string[0]
                         })
                     }
+                },
+                new Tool
+                {
+                    Type = "function",
+                    Function = new ToolFunction
+                    {
+                        Name = "run_program",
+                        Description = "Run a program or command in a secure Docker container",
+                        Parameters = JsonSerializer.SerializeToElement(new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                command = new
+                                {
+                                    type = "string",
+                                    description = "The command to execute"
+                                },
+                                language = new
+                                {
+                                    type = "string",
+                                    description = "The programming language (python, node, etc.)"
+                                },
+                                timeout = new
+                                {
+                                    type = "number",
+                                    description = "Timeout in seconds (default: 30)"
+                                }
+                            },
+                            required = new[] { "command", "language" }
+                        })
+                    }
                 }
             });
         }

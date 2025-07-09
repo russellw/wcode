@@ -78,12 +78,31 @@ public class ProjectToolExecutor
                         result = structureResult is { Success: true } ? structureResult.Message : $"Error getting project structure: {structureResult?.Message ?? "Unknown error"}";
                         break;
                         
+                    case "run_program":
+                        var command = arguments.GetProperty("command").GetString();
+                        var language = arguments.GetProperty("language").GetString();
+                        var timeout = arguments.TryGetProperty("timeout", out var timeoutProp) ? timeoutProp.GetInt32() : 30;
+                        
+                        if (string.IsNullOrEmpty(command))
+                        {
+                            result = "Error: No command specified";
+                        }
+                        else if (string.IsNullOrEmpty(language))
+                        {
+                            result = "Error: No language specified";
+                        }
+                        else
+                        {
+                            result = await ExecuteInDockerAsync(command, language, timeout);
+                        }
+                        break;
+                        
                     case "get_system_info":
                         var sysInfo = $"System Information:\n" +
                                      $"- Tool calling: Available\n" +
                                      $"- Project query service: {(_queryService != null ? "Available" : "Not available")}\n" +
                                      $"- Current time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-                                     $"- Available tools: {(_queryService != null ? "read_file, write_file, list_files, search_files, get_project_structure, get_system_info" : "get_system_info only")}";
+                                     $"- Available tools: {(_queryService != null ? "read_file, write_file, list_files, search_files, get_project_structure, run_program, get_system_info" : "get_system_info only")}";
                         result = sysInfo;
                         break;
                         
@@ -99,5 +118,81 @@ public class ProjectToolExecutor
         }
         
         return result;
+    }
+    
+    private async Task<string> ExecuteInDockerAsync(string command, string language, int timeoutSeconds)
+    {
+        try
+        {
+            string dockerImage = GetDockerImage(language);
+            if (string.IsNullOrEmpty(dockerImage))
+            {
+                return $"Error: Unsupported language '{language}'";
+            }
+
+            var processInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = $"run --rm --network=none --memory=256m --cpus=0.5 --timeout={timeoutSeconds} {dockerImage} {command}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = System.Diagnostics.Process.Start(processInfo);
+            if (process == null)
+            {
+                return "Error: Failed to start Docker process";
+            }
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds));
+            var processTask = process.WaitForExitAsync();
+
+            var completedTask = await Task.WhenAny(processTask, timeoutTask);
+            
+            if (completedTask == timeoutTask)
+            {
+                process.Kill();
+                return $"Error: Command timed out after {timeoutSeconds} seconds";
+            }
+
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (process.ExitCode == 0)
+            {
+                return string.IsNullOrEmpty(output) ? "Command executed successfully (no output)" : output;
+            }
+            else
+            {
+                return $"Error (exit code {process.ExitCode}): {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            return $"Error executing command: {ex.Message}";
+        }
+    }
+    
+    private string GetDockerImage(string language)
+    {
+        return language.ToLower() switch
+        {
+            "python" => "python:3.11-slim",
+            "node" => "node:18-alpine",
+            "javascript" => "node:18-alpine",
+            "java" => "openjdk:11-jre-slim",
+            "go" => "golang:1.21-alpine",
+            "rust" => "rust:1.70-slim",
+            "ruby" => "ruby:3.0-alpine",
+            "php" => "php:8.1-cli-alpine",
+            "bash" => "ubuntu:22.04",
+            "shell" => "ubuntu:22.04",
+            _ => ""
+        };
     }
 }
