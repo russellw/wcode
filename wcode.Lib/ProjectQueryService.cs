@@ -533,7 +533,7 @@ public class ProjectQueryService
         }
         
         // Look for "read file <path>" or "write file <path>" patterns
-        var commandMatch = System.Text.RegularExpressions.Regex.Match(query, @"(?:read|write) file\s+(.+?)(?:\s+content:|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var commandMatch = System.Text.RegularExpressions.Regex.Match(query, @"(?:read|write) file\s+([^\s]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         if (commandMatch.Success)
         {
             var path = commandMatch.Groups[1].Value.Trim();

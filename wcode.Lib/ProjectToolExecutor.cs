@@ -197,6 +197,8 @@ public class ProjectToolExecutor
             "rust" => "rust:1.70-slim",
             "ruby" => "ruby:3.0-alpine",
             "php" => "php:8.1-cli-alpine",
+            "c" => "gcc:latest",
+            "cpp" => "gcc:latest", 
             "bash" => "ubuntu:22.04",
             "shell" => "ubuntu:22.04",
             _ => ""
