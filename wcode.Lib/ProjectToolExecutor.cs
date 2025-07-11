@@ -57,7 +57,10 @@ public class ProjectToolExecutor
                         }
                         else
                         {
-                            var writeResult = await _queryService!.ProcessQueryAsync($"write file {writeFilename} content: {content}");
+                            var writeQuery = $"write file {writeFilename} content: {content}";
+                            Console.WriteLine($"[DEBUG] write_file query: {writeQuery}");
+                            var writeResult = await _queryService!.ProcessQueryAsync(writeQuery);
+                            Console.WriteLine($"[DEBUG] write_file result: Success={writeResult?.Success}, Message={writeResult?.Message}");
                             result = writeResult is { Success: true } ? writeResult.Message : $"Error writing file: {writeResult?.Message ?? "Unknown error"}";  
                         }
                         break;

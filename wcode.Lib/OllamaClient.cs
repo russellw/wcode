@@ -160,29 +160,68 @@ public class OllamaClient : IDisposable
             {
                 try
                 {
-                    // Try to parse content as a tool call JSON
-                    var toolCallData = JsonSerializer.Deserialize<JsonElement>(chatResponse.Message.Content);
-                    if (toolCallData.TryGetProperty("name", out var nameElement) && 
-                        toolCallData.TryGetProperty("arguments", out var argsElement))
+                    var toolCalls = new List<ToolCall>();
+                    var messageContent = chatResponse.Message.Content.Trim();
+                    
+                    // Handle multiple JSON objects - split by lines and try to parse each
+                    var lines = messageContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                    var currentJson = "";
+                    var braceCount = 0;
+                    
+                    foreach (var line in lines)
                     {
-                        // Create a tool call from the content
-                        var toolCall = new ToolCall
-                        {
-                            Id = Guid.NewGuid().ToString(),
-                            Type = "function",
-                            Function = new ToolCallFunction
-                            {
-                                Name = nameElement.GetString() ?? string.Empty,
-                                Arguments = argsElement
-                            }
-                        };
+                        var trimmedLine = line.Trim();
+                        if (string.IsNullOrEmpty(trimmedLine)) continue;
                         
-                        chatResponse.Message.ToolCalls = new List<ToolCall> { toolCall };
+                        currentJson += trimmedLine;
+                        
+                        // Count braces to find complete JSON objects
+                        foreach (var c in trimmedLine)
+                        {
+                            if (c == '{') braceCount++;
+                            else if (c == '}') braceCount--;
+                        }
+                        
+                        // When braces are balanced, we have a complete JSON object
+                        if (braceCount == 0 && !string.IsNullOrEmpty(currentJson))
+                        {
+                            try
+                            {
+                                var toolCallData = JsonSerializer.Deserialize<JsonElement>(currentJson);
+                                if (toolCallData.TryGetProperty("name", out var nameElement) && 
+                                    toolCallData.TryGetProperty("arguments", out var argsElement))
+                                {
+                                    var toolCall = new ToolCall
+                                    {
+                                        Id = Guid.NewGuid().ToString(),
+                                        Type = "function",
+                                        Function = new ToolCallFunction
+                                        {
+                                            Name = nameElement.GetString() ?? string.Empty,
+                                            Arguments = argsElement
+                                        }
+                                    };
+                                    toolCalls.Add(toolCall);
+                                }
+                            }
+                            catch (JsonException)
+                            {
+                                // This JSON object is invalid, skip it
+                            }
+                            
+                            currentJson = "";
+                        }
+                    }
+                    
+                    if (toolCalls.Count > 0)
+                    {
+                        chatResponse.Message.ToolCalls = toolCalls;
+                        Console.WriteLine($"[DEBUG] Parsed {toolCalls.Count} tool calls from content");
                     }
                 }
-                catch (JsonException)
+                catch (Exception ex)
                 {
-                    // Content is not JSON, leave as is
+                    Console.WriteLine($"[DEBUG] Error parsing tool calls from content: {ex.Message}");
                 }
             }
             

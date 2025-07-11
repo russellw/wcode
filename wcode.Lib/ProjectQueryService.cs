@@ -59,6 +59,7 @@ public class ProjectQueryService
         {
             var filePath = ExtractFilePath(query);
             var content = ExtractFileContent(query);
+            Console.WriteLine($"[DEBUG] ParseQuery write_file: filePath='{filePath}', content='{content}'");
             return new QueryCommand { Type = QueryType.WriteFile, Target = filePath, SearchTerm = content };
         }
         
