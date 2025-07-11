@@ -9,6 +9,8 @@ public class ProjectQueryService
     private readonly string _projectPath;
     private readonly ProjectConfig _projectConfig;
 
+    public string ProjectPath => _projectPath;
+
     public ProjectQueryService(string projectPath)
     {
         _projectPath = projectPath;

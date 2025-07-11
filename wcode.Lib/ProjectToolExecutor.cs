@@ -133,10 +133,14 @@ public class ProjectToolExecutor
                 return $"Error: Unsupported language '{language}'";
             }
 
+            // Get project path for volume mounting
+            var projectPath = _queryService?.ProjectPath ?? Directory.GetCurrentDirectory();
+            var workingDir = "/workspace";
+            
             var processInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "docker",
-                Arguments = $"run --rm --network=none --memory=256m --cpus=0.5 {dockerImage} {command}",
+                Arguments = $"run --rm --network=none --memory=256m --cpus=0.5 -v \"{projectPath}\":{workingDir} -w {workingDir} {dockerImage} {command}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
