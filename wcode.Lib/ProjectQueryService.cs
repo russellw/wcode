@@ -525,18 +525,23 @@ public class ProjectQueryService
 
     private string ExtractFilePath(string query)
     {
+        Console.WriteLine($"[DEBUG] ExtractFilePath input: '{query}'");
+        
         // Simple extraction - look for quoted strings or common file patterns
         var matches = System.Text.RegularExpressions.Regex.Matches(query, @"""([^""]+)""");
         if (matches.Any())
         {
-            return matches[0].Groups[1].Value;
+            var quotedResult = matches[0].Groups[1].Value;
+            Console.WriteLine($"[DEBUG] ExtractFilePath quoted match: '{quotedResult}'");
+            return quotedResult;
         }
         
         // Look for "read file <path>" or "write file <path>" patterns - must be at start of query
-        var commandMatch = System.Text.RegularExpressions.Regex.Match(query, @"^(?:read|write) file\s+(\S+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var commandMatch = System.Text.RegularExpressions.Regex.Match(query, @"^(?:read|write) file\s+(\S+?)(?:\s+content:|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         if (commandMatch.Success)
         {
             var path = commandMatch.Groups[1].Value.Trim();
+            Console.WriteLine($"[DEBUG] ExtractFilePath command match: '{path}'");
             // Don't return empty paths or paths that are just "content:"
             if (!string.IsNullOrEmpty(path) && !path.StartsWith("content:", StringComparison.OrdinalIgnoreCase))
             {
@@ -544,13 +549,17 @@ public class ProjectQueryService
             }
         }
         
-        // Look for file extensions
-        var fileMatch = System.Text.RegularExpressions.Regex.Match(query, @"(\w+\.\w+)");
+        // Look for file extensions in the first part of the query only
+        var queryStart = query.Split(new[] { "content:" }, StringSplitOptions.None)[0];
+        var fileMatch = System.Text.RegularExpressions.Regex.Match(queryStart, @"(\w+\.\w+)");
         if (fileMatch.Success)
         {
-            return fileMatch.Groups[1].Value;
+            var extensionResult = fileMatch.Groups[1].Value;
+            Console.WriteLine($"[DEBUG] ExtractFilePath extension match: '{extensionResult}'");
+            return extensionResult;
         }
         
+        Console.WriteLine($"[DEBUG] ExtractFilePath no match found");
         return "";
     }
     
