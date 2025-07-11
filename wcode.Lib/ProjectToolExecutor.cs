@@ -133,7 +133,7 @@ public class ProjectToolExecutor
             var processInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "docker",
-                Arguments = $"run --rm --network=none --memory=256m --cpus=0.5 --timeout={timeoutSeconds} {dockerImage} {command}",
+                Arguments = $"run --rm --network=none --memory=256m --cpus=0.5 {dockerImage} {command}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
