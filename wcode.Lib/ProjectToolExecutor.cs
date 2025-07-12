@@ -81,7 +81,7 @@ public class ProjectToolExecutor
                         result = structureResult is { Success: true } ? structureResult.Message : $"Error getting project structure: {structureResult?.Message ?? "Unknown error"}";
                         break;
                         
-                    case "run_program":
+                    case "run_command":
                         var command = arguments.GetProperty("command").GetString();
                         var language = arguments.GetProperty("language").GetString();
                         var timeout = arguments.TryGetProperty("timeout", out var timeoutProp) ? timeoutProp.GetInt32() : 30;
@@ -105,7 +105,7 @@ public class ProjectToolExecutor
                                      $"- Tool calling: Available\n" +
                                      $"- Project query service: {(_queryService != null ? "Available" : "Not available")}\n" +
                                      $"- Current time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-                                     $"- Available tools: {(_queryService != null ? "read_file, write_file, list_files, search_files, get_project_structure, run_program, get_system_info" : "get_system_info only")}";
+                                     $"- Available tools: {(_queryService != null ? "read_file, write_file, list_files, search_files, get_project_structure, run_command, get_system_info" : "get_system_info only")}";
                         result = sysInfo;
                         break;
                         
