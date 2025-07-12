@@ -306,7 +306,16 @@ class Program
                     bool isSuccess = !result.StartsWith("Error") && !result.StartsWith("Unknown tool function");
                     if (isSuccess)
                     {
-                        Console.WriteLine($"Tool '{toolCall.Function.Name}' executed successfully");
+                        // For run_program, show the actual output instead of just "executed successfully"
+                        if (toolCall.Function.Name == "run_program")
+                        {
+                            Console.WriteLine($"Tool '{toolCall.Function.Name}' output:");
+                            Console.WriteLine(result);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Tool '{toolCall.Function.Name}' executed successfully");
+                        }
                     }
                     else
                     {
