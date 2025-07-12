@@ -322,12 +322,13 @@ class Program
         var tools = ProjectToolProvider.CreateProjectTools(_queryService);
 
         // Assert
-        Assert.Equal(6, tools.Count);
+        Assert.Equal(7, tools.Count);
         Assert.Contains(tools, t => t.Function.Name == "read_file");
         Assert.Contains(tools, t => t.Function.Name == "write_file");
         Assert.Contains(tools, t => t.Function.Name == "list_files");
         Assert.Contains(tools, t => t.Function.Name == "search_files");
         Assert.Contains(tools, t => t.Function.Name == "get_project_structure");
+        Assert.Contains(tools, t => t.Function.Name == "run_command");
         Assert.Contains(tools, t => t.Function.Name == "get_system_info");
     }
 
