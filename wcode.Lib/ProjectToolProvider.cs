@@ -119,8 +119,8 @@ public class ProjectToolProvider
                     Type = "function",
                     Function = new ToolFunction
                     {
-                        Name = "run_program",
-                        Description = "Run a program or command in a secure Docker container",
+                        Name = "run_program", 
+                        Description = "Run shell commands or programs in a secure Docker container. Supports shell operators like &&, ;, |, >, <",
                         Parameters = JsonSerializer.SerializeToElement(new
                         {
                             type = "object",
@@ -129,7 +129,7 @@ public class ProjectToolProvider
                                 command = new
                                 {
                                     type = "string",
-                                    description = "The command to execute"
+                                    description = "The shell command to execute (supports &&, ;, |, >, < operators)"
                                 },
                                 language = new
                                 {

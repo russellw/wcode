@@ -137,10 +137,15 @@ public class ProjectToolExecutor
             var projectPath = _queryService?.ProjectPath ?? Directory.GetCurrentDirectory();
             var workingDir = "/workspace";
             
+            // Use shell execution for complex commands with operators like &&, ;, |, etc.
+            var shellCommand = command.Contains("&&") || command.Contains(";") || command.Contains("|") || command.Contains(">") || command.Contains("<")
+                ? $"sh -c \"{command.Replace("\"", "\\\"")}\""
+                : command;
+            
             var processInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "docker",
-                Arguments = $"run --rm --network=none --memory=256m --cpus=0.5 -v \"{projectPath}\":{workingDir} -w {workingDir} {dockerImage} {command}",
+                Arguments = $"run --rm --network=none --memory=256m --cpus=0.5 -v \"{projectPath}\":{workingDir} -w {workingDir} {dockerImage} {shellCommand}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
