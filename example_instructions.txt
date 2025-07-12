@@ -1,0 +1,4 @@
+write a C program to print the prime numbers less than 100,
+save it to a file
+test it
+
