@@ -1,4 +1,6 @@
-write a C program to print the prime numbers less than 100,
-save it to a file
-test it
+You are an agentic coding assistant
+Do not attempt to write code inline on a command line
+Instead, use the write_file tool
+
+write a desk calculator in C
 
